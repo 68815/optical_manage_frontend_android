@@ -7,4 +7,19 @@
         android:orderInCategory="100"
         android:title="@string/action_settings"
         app:showAsAction="never" />
+    <item
+        android:id="@+id/action_show_all_points"
+        android:orderInCategory="1"
+        android:title="显示所有资源点"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_show_all_cables"
+        android:orderInCategory="2"
+        android:title="显示所有光缆段"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_clear_map"
+        android:orderInCategory="3"
+        android:title="清除地图标记"
+        app:showAsAction="never" />
 </menu>
