@@ -1,45 +1,27 @@
 package cn.edu.ncepu.optical_manage.ui;
 
 import android.Manifest;
-import android.content.pm.PackageManager;
-import android.graphics.Color;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
-import android.widget.Spinner;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AlertDialog;
-import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 
-import com.amap.api.location.AMapLocation;
-import com.amap.api.location.AMapLocationClient;
-import com.amap.api.location.AMapLocationClientOption;
-import com.amap.api.location.AMapLocationListener;
 import com.amap.api.maps.AMap;
 import com.amap.api.maps.CameraUpdateFactory;
-import com.amap.api.maps.LocationSource;
 import com.amap.api.maps.MapView;
-import com.amap.api.maps.model.BitmapDescriptorFactory;
 import com.amap.api.maps.model.LatLng;
 import com.amap.api.maps.model.Marker;
-import com.amap.api.maps.model.MarkerOptions;
-import com.amap.api.maps.model.Polyline;
-import com.amap.api.maps.model.PolylineOptions;
-import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
-import com.google.android.material.textfield.TextInputEditText;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -51,9 +33,17 @@ import cn.edu.ncepu.optical_manage.manager.CableSegmentManager;
 import cn.edu.ncepu.optical_manage.manager.ResourcePointManager;
 import cn.edu.ncepu.optical_manage.model.CableSegment;
 import cn.edu.ncepu.optical_manage.model.ResourcePoint;
+import cn.edu.ncepu.optical_manage.ui.adapters.ResourcePointInfoWindowAdapter;
+import cn.edu.ncepu.optical_manage.ui.dialogs.AddResourcePointDialog;
+import cn.edu.ncepu.optical_manage.ui.dialogs.EditResourcePointDialog;
+import cn.edu.ncepu.optical_manage.ui.helper.CableDrawHelper;
+import cn.edu.ncepu.optical_manage.ui.helper.LocationHelper;
 import cn.edu.ncepu.optical_manage.utils.PermissionUtils;
 
-public class MapFragment extends Fragment implements LocationSource, AMapLocationListener, AMap.OnMapClickListener, AMap.OnMarkerClickListener, AMap.OnInfoWindowClickListener {
+public class MapFragment extends Fragment implements 
+        AMap.OnMapClickListener, 
+        AMap.OnMarkerClickListener, 
+        AMap.OnInfoWindowClickListener {
 
     private static final int PERMISSION_REQUEST_CODE = 1001;
     private static final String[] REQUIRED_PERMISSIONS = {
@@ -63,8 +53,6 @@ public class MapFragment extends Fragment implements LocationSource, AMapLocatio
 
     private MapView mapView;
     private AMap aMap;
-    private AMapLocationClient locationClient;
-    private LocationSource.OnLocationChangedListener locationChangedListener;
 
     private EditText searchEditText;
     private ImageButton searchButton;
@@ -82,17 +70,15 @@ public class MapFragment extends Fragment implements LocationSource, AMapLocatio
     private ApiService apiService;
     private ResourcePointManager resourcePointManager;
     private CableSegmentManager cableSegmentManager;
+    private LocationHelper locationHelper;
+    private CableDrawHelper cableDrawHelper;
 
-    private boolean isDrawCableMode = false;
-    private List<LatLng> cableDrawPoints = new ArrayList<>();
-    private Polyline drawingPolyline;
+    private AddMode currentAddMode = AddMode.NONE;
+    private List<ResourcePoint> resourcePoints = new ArrayList<>();
 
     private enum AddMode {
         NONE, POLE, MANHOLE, BUSINESS_HALL
     }
-
-    private AddMode currentAddMode = AddMode.NONE;
-    private List<ResourcePoint> resourcePoints = new ArrayList<>();
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -102,12 +88,22 @@ public class MapFragment extends Fragment implements LocationSource, AMapLocatio
 
     @Nullable
     @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, 
+                             @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_map, container, false);
 
-        mapView = view.findViewById(R.id.mapView);
-        mapView.onCreate(savedInstanceState);
+        initViews(view);
+        initMap(savedInstanceState);
+        initManagers();
+        initHelpers();
+        initListeners();
+        checkPermissions();
 
+        return view;
+    }
+
+    private void initViews(View view) {
+        mapView = view.findViewById(R.id.mapView);
         searchEditText = view.findViewById(R.id.searchEditText);
         searchButton = view.findViewById(R.id.searchButton);
         drawCablePanel = view.findViewById(R.id.drawCablePanel);
@@ -120,25 +116,20 @@ public class MapFragment extends Fragment implements LocationSource, AMapLocatio
         fabAddBusinessHall = view.findViewById(R.id.fabAddBusinessHall);
         fabDrawCable = view.findViewById(R.id.fabDrawCable);
         fabRefresh = view.findViewById(R.id.fabRefresh);
-
-        initMap();
-        initManagers();
-        initListeners();
-        checkPermissions();
-
-        return view;
     }
 
-    private void initMap() {
+    private void initMap(Bundle savedInstanceState) {
+        mapView.onCreate(savedInstanceState);
+        
         if (aMap == null) {
             aMap = mapView.getMap();
-            aMap.setLocationSource(this);
+            aMap.setLocationSource(locationHelper);
             aMap.getUiSettings().setMyLocationButtonEnabled(true);
             aMap.setMyLocationEnabled(true);
             aMap.setOnMapClickListener(this);
             aMap.setOnMarkerClickListener(this);
             aMap.setOnInfoWindowClickListener(this);
-            aMap.setInfoWindowAdapter(new ResourcePointInfoWindowAdapter());
+            aMap.setInfoWindowAdapter(new ResourcePointInfoWindowAdapter(LayoutInflater.from(requireContext())));
         }
     }
 
@@ -146,10 +137,33 @@ public class MapFragment extends Fragment implements LocationSource, AMapLocatio
         resourcePointManager = new ResourcePointManager(apiService, aMap, requireContext());
         cableSegmentManager = new CableSegmentManager(apiService, aMap, requireContext());
 
-        resourcePointManager.setOnResourcePointChangedListener(() -> {
+        resourcePointManager.setOnResourcePointChangedListener(() -> loadData());
+        cableSegmentManager.setOnCableSegmentChangedListener(() -> {});
+    }
+
+    private void initHelpers() {
+        locationHelper = new LocationHelper(requireContext());
+        
+        cableDrawHelper = new CableDrawHelper(aMap, this, cableSegmentManager, 
+                new CableDrawHelper.OnCableDrawListener() {
+            @Override
+            public void onDrawModeChanged(boolean isDrawing, CableDrawHelper.DrawMode mode) {
+                updateDrawPanel(isDrawing, mode);
+            }
+
+            @Override
+            public void onDrawCancelled() {
+                hideDrawPanel();
+            }
+
+            @Override
+            public void onDrawFinished() {
+                hideDrawPanel();
+                loadData();
+            }
         });
-        cableSegmentManager.setOnCableSegmentChangedListener(() -> {
-        });
+
+        aMap.setOnMarkerDragListener(cableDrawHelper);
     }
 
     private void initListeners() {
@@ -170,13 +184,53 @@ public class MapFragment extends Fragment implements LocationSource, AMapLocatio
             showToast("点击地图添加营业厅");
         });
 
-        fabDrawCable.setOnClickListener(v -> startDrawCableMode());
+        fabDrawCable.setOnClickListener(v -> {
+            cableDrawHelper.setResourcePoints(resourcePoints);
+            cableDrawHelper.startDrawCableMode();
+            showDrawPanel();
+        });
 
         fabRefresh.setOnClickListener(v -> loadData());
 
-        btnCancelDraw.setOnClickListener(v -> cancelDrawCableMode());
+        btnCancelDraw.setOnClickListener(v -> {
+            cableDrawHelper.cancelDrawCableMode();
+            hideDrawPanel();
+        });
 
-        btnFinishDraw.setOnClickListener(v -> finishDrawCable());
+        btnFinishDraw.setOnClickListener(v -> cableDrawHelper.finishDrawCable());
+    }
+
+    private void updateDrawPanel(boolean isDrawing, CableDrawHelper.DrawMode mode) {
+        if (!isDrawing) {
+            hideDrawPanel();
+            return;
+        }
+
+        String hint = "";
+        switch (mode) {
+            case SELECT_START:
+                hint = "请点击地图选择起点";
+                btnFinishDraw.setEnabled(false);
+                break;
+            case SELECT_END:
+                hint = "起点已选择，请点击地图选择终点";
+                btnFinishDraw.setEnabled(false);
+                break;
+            case ADD_WAYPOINTS:
+                hint = "终点已选择，点击地图添加中间点，或点击完成";
+                btnFinishDraw.setEnabled(true);
+                break;
+        }
+        tvDrawHint.setText(hint);
+    }
+
+    private void showDrawPanel() {
+        drawCablePanel.setVisibility(View.VISIBLE);
+        showToast("开始绘制光缆段");
+    }
+
+    private void hideDrawPanel() {
+        drawCablePanel.setVisibility(View.GONE);
     }
 
     private void checkPermissions() {
@@ -191,7 +245,8 @@ public class MapFragment extends Fragment implements LocationSource, AMapLocatio
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, 
+                                           @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == PERMISSION_REQUEST_CODE) {
             if (PermissionUtils.hasAllPermissions(requireContext(), REQUIRED_PERMISSIONS)) {
@@ -204,34 +259,28 @@ public class MapFragment extends Fragment implements LocationSource, AMapLocatio
     }
 
     private void initLocation() {
-        try {
-            locationClient = new AMapLocationClient(requireContext());
-            locationClient.setLocationListener(this);
-            AMapLocationClientOption option = new AMapLocationClientOption();
-            option.setLocationMode(AMapLocationClientOption.AMapLocationMode.Hight_Accuracy);
-            option.setOnceLocation(false);
-            option.setInterval(2000);
-            locationClient.setLocationOption(option);
-            locationClient.startLocation();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        aMap.setLocationSource(locationHelper);
+        locationHelper.initLocation();
     }
 
     private void loadData() {
         resourcePointManager.loadAllResourcePoints();
         cableSegmentManager.loadAllCableSegments();
-        resourcePoints = new ArrayList<>();
-        apiService.getAllResourcePoints().enqueue(new retrofit2.Callback<cn.edu.ncepu.optical_manage.model.ApiResponse<List<ResourcePoint>>>() {
+        
+        apiService.getAllResourcePoints().enqueue(
+                new retrofit2.Callback<cn.edu.ncepu.optical_manage.model.ApiResponse<List<ResourcePoint>>>() {
             @Override
-            public void onResponse(retrofit2.Call<cn.edu.ncepu.optical_manage.model.ApiResponse<List<ResourcePoint>>> call, retrofit2.Response<cn.edu.ncepu.optical_manage.model.ApiResponse<List<ResourcePoint>>> response) {
+            public void onResponse(retrofit2.Call<cn.edu.ncepu.optical_manage.model.ApiResponse<List<ResourcePoint>>> call,
+                                   retrofit2.Response<cn.edu.ncepu.optical_manage.model.ApiResponse<List<ResourcePoint>>> response) {
                 if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
                     resourcePoints = response.body().getData();
+                    cableDrawHelper.setResourcePoints(resourcePoints);
                 }
             }
 
             @Override
-            public void onFailure(retrofit2.Call<cn.edu.ncepu.optical_manage.model.ApiResponse<List<ResourcePoint>>> call, Throwable t) {
+            public void onFailure(retrofit2.Call<cn.edu.ncepu.optical_manage.model.ApiResponse<List<ResourcePoint>>> call,
+                                  Throwable t) {
             }
         });
     }
@@ -243,9 +292,11 @@ public class MapFragment extends Fragment implements LocationSource, AMapLocatio
             return;
         }
 
-        apiService.searchResourcePoints(keyword).enqueue(new retrofit2.Callback<cn.edu.ncepu.optical_manage.model.ApiResponse<List<ResourcePoint>>>() {
+        apiService.searchResourcePoints(keyword).enqueue(
+                new retrofit2.Callback<cn.edu.ncepu.optical_manage.model.ApiResponse<List<ResourcePoint>>>() {
             @Override
-            public void onResponse(retrofit2.Call<cn.edu.ncepu.optical_manage.model.ApiResponse<List<ResourcePoint>>> call, retrofit2.Response<cn.edu.ncepu.optical_manage.model.ApiResponse<List<ResourcePoint>>> response) {
+            public void onResponse(retrofit2.Call<cn.edu.ncepu.optical_manage.model.ApiResponse<List<ResourcePoint>>> call,
+                                   retrofit2.Response<cn.edu.ncepu.optical_manage.model.ApiResponse<List<ResourcePoint>>> response) {
                 if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
                     List<ResourcePoint> results = response.body().getData();
                     if (results != null && !results.isEmpty()) {
@@ -260,7 +311,8 @@ public class MapFragment extends Fragment implements LocationSource, AMapLocatio
             }
 
             @Override
-            public void onFailure(retrofit2.Call<cn.edu.ncepu.optical_manage.model.ApiResponse<List<ResourcePoint>>> call, Throwable t) {
+            public void onFailure(retrofit2.Call<cn.edu.ncepu.optical_manage.model.ApiResponse<List<ResourcePoint>>> call,
+                                  Throwable t) {
                 showToast("搜索失败：" + t.getMessage());
             }
         });
@@ -270,185 +322,42 @@ public class MapFragment extends Fragment implements LocationSource, AMapLocatio
     public void onMapClick(LatLng latLng) {
         if (currentAddMode != AddMode.NONE) {
             showAddResourcePointDialog(latLng);
-        } else if (isDrawCableMode) {
-            handleDrawCableClick(latLng);
+        } else if (cableDrawHelper.isDrawCableMode()) {
+            cableDrawHelper.handleMapClick(latLng);
+            updateDrawPanel(true, cableDrawHelper.getCurrentDrawMode());
         }
     }
 
     private void showAddResourcePointDialog(LatLng latLng) {
-        View dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_resource_point, null);
-        TextInputEditText etName = dialogView.findViewById(R.id.etName);
-        Spinner spinnerType = dialogView.findViewById(R.id.spinnerType);
-        TextInputEditText etAddress = dialogView.findViewById(R.id.etAddress);
-        TextInputEditText etDescription = dialogView.findViewById(R.id.etDescription);
-        TextView tvDialogTitle = dialogView.findViewById(R.id.tvDialogTitle);
-
-        String[] types = {ResourcePoint.TYPE_POLE, ResourcePoint.TYPE_MANHOLE, ResourcePoint.TYPE_BUSINESS_HALL};
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_item, types);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinnerType.setAdapter(adapter);
-
+        String defaultType;
+        String title;
+        
         switch (currentAddMode) {
             case POLE:
-                spinnerType.setSelection(0);
-                tvDialogTitle.setText("添加电杆");
+                defaultType = ResourcePoint.TYPE_POLE;
+                title = "添加电杆";
                 break;
             case MANHOLE:
-                spinnerType.setSelection(1);
-                tvDialogTitle.setText("添加人井");
+                defaultType = ResourcePoint.TYPE_MANHOLE;
+                title = "添加人井";
                 break;
             case BUSINESS_HALL:
-                spinnerType.setSelection(2);
-                tvDialogTitle.setText("添加营业厅");
+                defaultType = ResourcePoint.TYPE_BUSINESS_HALL;
+                title = "添加营业厅";
                 break;
-        }
-
-        Button btnCancel = dialogView.findViewById(R.id.btnCancel);
-        Button btnSave = dialogView.findViewById(R.id.btnSave);
-
-        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(requireContext()).setView(dialogView);
-        AlertDialog dialog = builder.create();
-
-        btnCancel.setOnClickListener(v -> {
-            currentAddMode = AddMode.NONE;
-            dialog.dismiss();
-        });
-
-        btnSave.setOnClickListener(v -> {
-            String name = etName.getText().toString().trim();
-            String type = (String) spinnerType.getSelectedItem();
-            String address = etAddress.getText().toString().trim();
-            String description = etDescription.getText().toString().trim();
-
-            if (TextUtils.isEmpty(name)) {
-                showToast("请输入名称");
+            default:
                 return;
-            }
-
-            ResourcePoint point = new ResourcePoint(name, type, latLng.latitude, latLng.longitude);
-            point.setAddress(address);
-            point.setDescription(description);
-
-            resourcePointManager.createResourcePoint(point);
-            currentAddMode = AddMode.NONE;
-            dialog.dismiss();
-        });
-
-        dialog.show();
-    }
-
-    private void startDrawCableMode() {
-        isDrawCableMode = true;
-        cableDrawPoints.clear();
-        drawCablePanel.setVisibility(View.VISIBLE);
-        tvDrawHint.setText("点击地图选择光缆段路径点");
-        btnFinishDraw.setEnabled(false);
-        showToast("开始绘制光缆段");
-    }
-
-    private void cancelDrawCableMode() {
-        isDrawCableMode = false;
-        cableDrawPoints.clear();
-        drawCablePanel.setVisibility(View.GONE);
-        if (drawingPolyline != null) {
-            drawingPolyline.remove();
-            drawingPolyline = null;
-        }
-    }
-
-    private void handleDrawCableClick(LatLng latLng) {
-        cableDrawPoints.add(latLng);
-
-        if (drawingPolyline != null) {
-            drawingPolyline.remove();
         }
 
-        if (cableDrawPoints.size() >= 2) {
-            PolylineOptions options = new PolylineOptions().addAll(cableDrawPoints).width(10).color(Color.RED);
-            drawingPolyline = aMap.addPolyline(options);
-            btnFinishDraw.setEnabled(true);
-        }
-
-        MarkerOptions markerOptions = new MarkerOptions().position(latLng).icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_YELLOW));
-        aMap.addMarker(markerOptions);
-
-        tvDrawHint.setText("已选择 " + cableDrawPoints.size() + " 个点，继续点击或点击完成");
-    }
-
-    private void finishDrawCable() {
-        if (cableDrawPoints.size() < 2) {
-            showToast("至少需要选择 2 个点");
-            return;
-        }
-        showCableSegmentDialog();
-    }
-
-    private void showCableSegmentDialog() {
-        View dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_cable_segment, null);
-        TextInputEditText etName = dialogView.findViewById(R.id.etName);
-        Spinner spinnerStartPoint = dialogView.findViewById(R.id.spinnerStartPoint);
-        Spinner spinnerEndPoint = dialogView.findViewById(R.id.spinnerEndPoint);
-        TextInputEditText etFiberCount = dialogView.findViewById(R.id.etFiberCount);
-        TextInputEditText etDescription = dialogView.findViewById(R.id.etDescription);
-
-        List<String> pointNames = new ArrayList<>();
-        pointNames.add("请选择");
-        for (ResourcePoint point : resourcePoints) {
-            pointNames.add(point.getName());
-        }
-
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_item, pointNames);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinnerStartPoint.setAdapter(adapter);
-        spinnerEndPoint.setAdapter(adapter);
-
-        Button btnCancel = dialogView.findViewById(R.id.btnCancel);
-        Button btnSave = dialogView.findViewById(R.id.btnSave);
-
-        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(requireContext()).setView(dialogView);
-        AlertDialog dialog = builder.create();
-
-        btnCancel.setOnClickListener(v -> {
-            cancelDrawCableMode();
-            dialog.dismiss();
-        });
-
-        btnSave.setOnClickListener(v -> {
-            String name = etName.getText().toString().trim();
-            int startIndex = spinnerStartPoint.getSelectedItemPosition();
-            int endIndex = spinnerEndPoint.getSelectedItemPosition();
-            String fiberCountStr = etFiberCount.getText().toString().trim();
-            String description = etDescription.getText().toString().trim();
-
-            if (TextUtils.isEmpty(name)) {
-                showToast("请输入名称");
-                return;
-            }
-
-            if (startIndex == 0 || endIndex == 0) {
-                showToast("请选择起点和终点");
-                return;
-            }
-
-            CableSegment segment = new CableSegment();
-            segment.setName(name);
-            segment.setStartPointId(resourcePoints.get(startIndex - 1).getId());
-            segment.setEndPointId(resourcePoints.get(endIndex - 1).getId());
-            segment.setFiberCount(TextUtils.isEmpty(fiberCountStr) ? 0 : Integer.parseInt(fiberCountStr));
-            segment.setDescription(description);
-
-            List<CableSegment.Point> points = new ArrayList<>();
-            for (LatLng latLng : cableDrawPoints) {
-                points.add(new CableSegment.Point(latLng.latitude, latLng.longitude));
-            }
-            segment.setPoints(points);
-
-            cableSegmentManager.createCableSegment(segment);
-            cancelDrawCableMode();
-            dialog.dismiss();
-        });
-
-        dialog.show();
+        AddResourcePointDialog dialog = new AddResourcePointDialog(
+                this,
+                point -> {
+                    resourcePointManager.createResourcePoint(point);
+                    currentAddMode = AddMode.NONE;
+                },
+                () -> currentAddMode = AddMode.NONE
+        );
+        dialog.show(latLng.latitude, latLng.longitude, defaultType, title);
     }
 
     @Override
@@ -474,7 +383,7 @@ public class MapFragment extends Fragment implements LocationSource, AMapLocatio
     private void showResourcePointDetailDialog(ResourcePoint point) {
         String[] options = {"编辑", "删除"};
 
-        new MaterialAlertDialogBuilder(requireContext())
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
                 .setTitle(point.getName())
                 .setItems(options, (dialog, which) -> {
                     switch (which) {
@@ -490,92 +399,20 @@ public class MapFragment extends Fragment implements LocationSource, AMapLocatio
     }
 
     private void showEditResourcePointDialog(ResourcePoint point) {
-        View dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_resource_point, null);
-        TextInputEditText etName = dialogView.findViewById(R.id.etName);
-        Spinner spinnerType = dialogView.findViewById(R.id.spinnerType);
-        TextInputEditText etAddress = dialogView.findViewById(R.id.etAddress);
-        TextInputEditText etDescription = dialogView.findViewById(R.id.etDescription);
-        TextView tvDialogTitle = dialogView.findViewById(R.id.tvDialogTitle);
-
-        tvDialogTitle.setText("编辑资源点");
-        etName.setText(point.getName());
-        etAddress.setText(point.getAddress());
-        etDescription.setText(point.getDescription());
-
-        String[] types = {ResourcePoint.TYPE_POLE, ResourcePoint.TYPE_MANHOLE, ResourcePoint.TYPE_BUSINESS_HALL};
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_item, types);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinnerType.setAdapter(adapter);
-
-        for (int i = 0; i < types.length; i++) {
-            if (types[i].equals(point.getType())) {
-                spinnerType.setSelection(i);
-                break;
-            }
-        }
-
-        Button btnCancel = dialogView.findViewById(R.id.btnCancel);
-        Button btnSave = dialogView.findViewById(R.id.btnSave);
-
-        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(requireContext()).setView(dialogView);
-        AlertDialog dialog = builder.create();
-
-        btnCancel.setOnClickListener(v -> dialog.dismiss());
-
-        btnSave.setOnClickListener(v -> {
-            String name = etName.getText().toString().trim();
-            String type = (String) spinnerType.getSelectedItem();
-            String address = etAddress.getText().toString().trim();
-            String description = etDescription.getText().toString().trim();
-
-            if (TextUtils.isEmpty(name)) {
-                showToast("请输入名称");
-                return;
-            }
-
-            point.setName(name);
-            point.setType(type);
-            point.setAddress(address);
-            point.setDescription(description);
-
-            resourcePointManager.updateResourcePoint(point);
-            dialog.dismiss();
-        });
-
-        dialog.show();
+        EditResourcePointDialog dialog = new EditResourcePointDialog(
+                this,
+                updatedPoint -> resourcePointManager.updateResourcePoint(updatedPoint)
+        );
+        dialog.show(point);
     }
 
     private void showDeleteConfirmDialog(ResourcePoint point) {
-        new MaterialAlertDialogBuilder(requireContext())
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
                 .setTitle("确认删除")
                 .setMessage("确定要删除资源点 \"" + point.getName() + "\" 吗？")
                 .setPositiveButton("删除", (dialog, which) -> resourcePointManager.deleteResourcePoint(point))
                 .setNegativeButton("取消", null)
                 .show();
-    }
-
-    @Override
-    public void onLocationChanged(AMapLocation aMapLocation) {
-        if (locationChangedListener != null && aMapLocation != null) {
-            if (aMapLocation.getErrorCode() == 0) {
-                locationChangedListener.onLocationChanged(aMapLocation);
-            }
-        }
-    }
-
-    @Override
-    public void activate(OnLocationChangedListener onLocationChangedListener) {
-        locationChangedListener = onLocationChangedListener;
-    }
-
-    @Override
-    public void deactivate() {
-        locationChangedListener = null;
-        if (locationClient != null) {
-            locationClient.stopLocation();
-            locationClient.onDestroy();
-        }
-        locationClient = null;
     }
 
     private void showToast(String message) {
@@ -606,34 +443,8 @@ public class MapFragment extends Fragment implements LocationSource, AMapLocatio
     public void onDestroyView() {
         super.onDestroyView();
         mapView.onDestroy();
-        if (locationClient != null) {
-            locationClient.stopLocation();
-            locationClient.onDestroy();
-        }
-    }
-
-    private class ResourcePointInfoWindowAdapter implements AMap.InfoWindowAdapter {
-        @Override
-        public View getInfoWindow(Marker marker) {
-            View view = LayoutInflater.from(requireContext()).inflate(R.layout.info_window_resource_point, null);
-            TextView tvName = view.findViewById(R.id.tvName);
-            TextView tvType = view.findViewById(R.id.tvType);
-            TextView tvAddress = view.findViewById(R.id.tvAddress);
-
-            Object object = marker.getObject();
-            if (object instanceof ResourcePoint) {
-                ResourcePoint point = (ResourcePoint) object;
-                tvName.setText(point.getName());
-                tvType.setText("类型：" + point.getType());
-                tvAddress.setText("地址：" + (point.getAddress() != null ? point.getAddress() : "无"));
-            }
-
-            return view;
-        }
-
-        @Override
-        public View getInfoContents(Marker marker) {
-            return null;
+        if (locationHelper != null) {
+            locationHelper.destroyLocation();
         }
     }
 }
