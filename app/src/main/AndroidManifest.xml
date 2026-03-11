@@ -6,11 +6,13 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!--允许程序获取网络状态-->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <!--允许程序访问WiFi网络信息-->
+    <!--允许程序访问 WiFi 网络信息-->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-    <!--允许程序访问CellID或WiFi热点来获取粗略的位置-->
+    <!--允许程序访问 CellID 或 WiFi 热点来获取粗略的位置-->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <!--允许获取wifi状态改变，用于网络定位，若无gps但仍需实现定位小蓝点功能则此权限必选-->
+    <!--允许程序通过 GPS 获取精确的位置-->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!--允许获取 wifi 状态改变，用于网络定位，若无 gps 但仍需实现定位小蓝点功能则此权限必选-->
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <!--允许写设备缓存，用于问题排查-->
     <uses-permission android:name="android.permission.WRITE_SETTINGS" />

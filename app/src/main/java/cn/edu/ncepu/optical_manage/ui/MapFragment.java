@@ -203,18 +203,18 @@ public class MapFragment extends Fragment implements LocationSource, AMapLocatio
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == PERMISSION_REQUEST_CODE) {
-            boolean allGranted = true;
-            for (int result : grantResults) {
-                if (result != PackageManager.PERMISSION_GRANTED) {
-                    allGranted = false;
-                    break;
+
+            List<String> stillMissing = new ArrayList<>();
+            for (String permission : REQUIRED_PERMISSIONS) {
+                if (ContextCompat.checkSelfPermission(requireContext(), permission) != PackageManager.PERMISSION_GRANTED) {
+                    stillMissing.add(permission);
                 }
             }
-            if (allGranted) {
+            if (stillMissing.isEmpty()) {
                 initLocation();
                 loadData();
             } else {
-                showToast("需要定位权限才能使用完整功能");
+                showToast("需要\"精确定位\"权限才能使用完整功能");
             }
         }
     }
