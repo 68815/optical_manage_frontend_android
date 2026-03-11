@@ -16,11 +16,10 @@ import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.app.ActivityCompat;
+import androidx.appcompat.app.AlertDialog;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 
@@ -43,19 +42,16 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.textfield.TextInputEditText;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import cn.edu.ncepu.optical_manage.R;
 import cn.edu.ncepu.optical_manage.api.ApiClient;
 import cn.edu.ncepu.optical_manage.api.ApiService;
-import cn.edu.ncepu.optical_manage.model.ApiResponse;
+import cn.edu.ncepu.optical_manage.manager.CableSegmentManager;
+import cn.edu.ncepu.optical_manage.manager.ResourcePointManager;
 import cn.edu.ncepu.optical_manage.model.CableSegment;
 import cn.edu.ncepu.optical_manage.model.ResourcePoint;
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
+import cn.edu.ncepu.optical_manage.utils.PermissionUtils;
 
 public class MapFragment extends Fragment implements LocationSource, AMapLocationListener, AMap.OnMapClickListener, AMap.OnMarkerClickListener, AMap.OnInfoWindowClickListener {
 
@@ -84,22 +80,19 @@ public class MapFragment extends Fragment implements LocationSource, AMapLocatio
     private FloatingActionButton fabRefresh;
 
     private ApiService apiService;
-    private List<ResourcePoint> resourcePoints = new ArrayList<>();
-    private List<CableSegment> cableSegments = new ArrayList<>();
-    private Map<Long, Marker> markerMap = new HashMap<>();
-    private Map<Long, Polyline> polylineMap = new HashMap<>();
+    private ResourcePointManager resourcePointManager;
+    private CableSegmentManager cableSegmentManager;
 
     private boolean isDrawCableMode = false;
     private List<LatLng> cableDrawPoints = new ArrayList<>();
     private Polyline drawingPolyline;
-    private ResourcePoint selectedStartPoint = null;
-    private ResourcePoint selectedEndPoint = null;
 
     private enum AddMode {
         NONE, POLE, MANHOLE, BUSINESS_HALL
     }
 
     private AddMode currentAddMode = AddMode.NONE;
+    private List<ResourcePoint> resourcePoints = new ArrayList<>();
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -129,6 +122,7 @@ public class MapFragment extends Fragment implements LocationSource, AMapLocatio
         fabRefresh = view.findViewById(R.id.fabRefresh);
 
         initMap();
+        initManagers();
         initListeners();
         checkPermissions();
 
@@ -146,6 +140,16 @@ public class MapFragment extends Fragment implements LocationSource, AMapLocatio
             aMap.setOnInfoWindowClickListener(this);
             aMap.setInfoWindowAdapter(new ResourcePointInfoWindowAdapter());
         }
+    }
+
+    private void initManagers() {
+        resourcePointManager = new ResourcePointManager(apiService, aMap, requireContext());
+        cableSegmentManager = new CableSegmentManager(apiService, aMap, requireContext());
+
+        resourcePointManager.setOnResourcePointChangedListener(() -> {
+        });
+        cableSegmentManager.setOnCableSegmentChangedListener(() -> {
+        });
     }
 
     private void initListeners() {
@@ -166,30 +170,17 @@ public class MapFragment extends Fragment implements LocationSource, AMapLocatio
             showToast("点击地图添加营业厅");
         });
 
-        fabDrawCable.setOnClickListener(v -> {
-            startDrawCableMode();
-        });
+        fabDrawCable.setOnClickListener(v -> startDrawCableMode());
 
-        fabRefresh.setOnClickListener(v -> {
-            loadData();
-        });
+        fabRefresh.setOnClickListener(v -> loadData());
 
-        btnCancelDraw.setOnClickListener(v -> {
-            cancelDrawCableMode();
-        });
+        btnCancelDraw.setOnClickListener(v -> cancelDrawCableMode());
 
-        btnFinishDraw.setOnClickListener(v -> {
-            finishDrawCable();
-        });
+        btnFinishDraw.setOnClickListener(v -> finishDrawCable());
     }
 
     private void checkPermissions() {
-        List<String> missingPermissions = new ArrayList<>();
-        for (String permission : REQUIRED_PERMISSIONS) {
-            if (ContextCompat.checkSelfPermission(requireContext(), permission) != PackageManager.PERMISSION_GRANTED) {
-                missingPermissions.add(permission);
-            }
-        }
+        List<String> missingPermissions = PermissionUtils.getMissingPermissions(requireContext(), REQUIRED_PERMISSIONS);
 
         if (missingPermissions.isEmpty()) {
             initLocation();
@@ -203,18 +194,11 @@ public class MapFragment extends Fragment implements LocationSource, AMapLocatio
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == PERMISSION_REQUEST_CODE) {
-
-            List<String> stillMissing = new ArrayList<>();
-            for (String permission : REQUIRED_PERMISSIONS) {
-                if (ContextCompat.checkSelfPermission(requireContext(), permission) != PackageManager.PERMISSION_GRANTED) {
-                    stillMissing.add(permission);
-                }
-            }
-            if (stillMissing.isEmpty()) {
+            if (PermissionUtils.hasAllPermissions(requireContext(), REQUIRED_PERMISSIONS)) {
                 initLocation();
                 loadData();
             } else {
-                showToast("需要\"精确定位\"权限才能使用完整功能");
+                showToast("需要定位权限才能使用完整功能");
             }
         }
     }
@@ -235,114 +219,21 @@ public class MapFragment extends Fragment implements LocationSource, AMapLocatio
     }
 
     private void loadData() {
-        loadResourcePoints();
-        loadCableSegments();
-    }
-
-    private void loadResourcePoints() {
-        apiService.getAllResourcePoints().enqueue(new Callback<ApiResponse<List<ResourcePoint>>>() {
+        resourcePointManager.loadAllResourcePoints();
+        cableSegmentManager.loadAllCableSegments();
+        resourcePoints = new ArrayList<>();
+        apiService.getAllResourcePoints().enqueue(new retrofit2.Callback<cn.edu.ncepu.optical_manage.model.ApiResponse<List<ResourcePoint>>>() {
             @Override
-            public void onResponse(Call<ApiResponse<List<ResourcePoint>>> call, Response<ApiResponse<List<ResourcePoint>>> response) {
+            public void onResponse(retrofit2.Call<cn.edu.ncepu.optical_manage.model.ApiResponse<List<ResourcePoint>>> call, retrofit2.Response<cn.edu.ncepu.optical_manage.model.ApiResponse<List<ResourcePoint>>> response) {
                 if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
                     resourcePoints = response.body().getData();
-                    updateMapMarkers();
                 }
             }
 
             @Override
-            public void onFailure(Call<ApiResponse<List<ResourcePoint>>> call, Throwable t) {
-                showToast("加载资源点失败: " + t.getMessage());
+            public void onFailure(retrofit2.Call<cn.edu.ncepu.optical_manage.model.ApiResponse<List<ResourcePoint>>> call, Throwable t) {
             }
         });
-    }
-
-    private void loadCableSegments() {
-        apiService.getAllCableSegments().enqueue(new Callback<ApiResponse<List<CableSegment>>>() {
-            @Override
-            public void onResponse(Call<ApiResponse<List<CableSegment>>> call, Response<ApiResponse<List<CableSegment>>> response) {
-                if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
-                    cableSegments = response.body().getData();
-                    updateMapPolylines();
-                }
-            }
-
-            @Override
-            public void onFailure(Call<ApiResponse<List<CableSegment>>> call, Throwable t) {
-                showToast("加载光缆段失败: " + t.getMessage());
-            }
-        });
-    }
-
-    private void updateMapMarkers() {
-        for (Marker marker : markerMap.values()) {
-            marker.remove();
-        }
-        markerMap.clear();
-
-        for (ResourcePoint point : resourcePoints) {
-            addMarkerForResourcePoint(point);
-        }
-    }
-
-    private void addMarkerForResourcePoint(ResourcePoint point) {
-        LatLng latLng = new LatLng(point.getLatitude(), point.getLongitude());
-        float markerColor = getMarkerColor(point.getType());
-
-        MarkerOptions markerOptions = new MarkerOptions()
-                .position(latLng)
-                .title(point.getName())
-                .snippet("类型: " + point.getType())
-                .icon(BitmapDescriptorFactory.defaultMarker(markerColor));
-
-        Marker marker = aMap.addMarker(markerOptions);
-        marker.setObject(point);
-        markerMap.put(point.getId(), marker);
-    }
-
-    private float getMarkerColor(String type) {
-        if (type == null) return BitmapDescriptorFactory.HUE_RED;
-
-        switch (type) {
-            case ResourcePoint.TYPE_POLE:
-                return BitmapDescriptorFactory.HUE_BLUE;
-            case ResourcePoint.TYPE_MANHOLE:
-                return BitmapDescriptorFactory.HUE_GREEN;
-            case ResourcePoint.TYPE_BUSINESS_HALL:
-                return BitmapDescriptorFactory.HUE_ORANGE;
-            default:
-                return BitmapDescriptorFactory.HUE_RED;
-        }
-    }
-
-    private void updateMapPolylines() {
-        for (Polyline polyline : polylineMap.values()) {
-            polyline.remove();
-        }
-        polylineMap.clear();
-
-        for (CableSegment segment : cableSegments) {
-            addPolylineForCableSegment(segment);
-        }
-    }
-
-    private void addPolylineForCableSegment(CableSegment segment) {
-        if (segment.getPoints() == null || segment.getPoints().isEmpty()) {
-            return;
-        }
-
-        List<LatLng> latLngs = new ArrayList<>();
-        for (CableSegment.Point point : segment.getPoints()) {
-            latLngs.add(new LatLng(point.getLatitude(), point.getLongitude()));
-        }
-
-        PolylineOptions polylineOptions = new PolylineOptions()
-                .addAll(latLngs)
-                .width(10)
-                .color(Color.BLUE)
-                .setDottedLine(false);
-
-        Polyline polyline = aMap.addPolyline(polylineOptions);
-        polylineMap.put(segment.getId(), polyline);
     }
 
     private void performSearch() {
@@ -352,9 +243,9 @@ public class MapFragment extends Fragment implements LocationSource, AMapLocatio
             return;
         }
 
-        apiService.searchResourcePoints(keyword).enqueue(new Callback<ApiResponse<List<ResourcePoint>>>() {
+        apiService.searchResourcePoints(keyword).enqueue(new retrofit2.Callback<cn.edu.ncepu.optical_manage.model.ApiResponse<List<ResourcePoint>>>() {
             @Override
-            public void onResponse(Call<ApiResponse<List<ResourcePoint>>> call, Response<ApiResponse<List<ResourcePoint>>> response) {
+            public void onResponse(retrofit2.Call<cn.edu.ncepu.optical_manage.model.ApiResponse<List<ResourcePoint>>> call, retrofit2.Response<cn.edu.ncepu.optical_manage.model.ApiResponse<List<ResourcePoint>>> response) {
                 if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
                     List<ResourcePoint> results = response.body().getData();
                     if (results != null && !results.isEmpty()) {
@@ -369,8 +260,8 @@ public class MapFragment extends Fragment implements LocationSource, AMapLocatio
             }
 
             @Override
-            public void onFailure(Call<ApiResponse<List<ResourcePoint>>> call, Throwable t) {
-                showToast("搜索失败: " + t.getMessage());
+            public void onFailure(retrofit2.Call<cn.edu.ncepu.optical_manage.model.ApiResponse<List<ResourcePoint>>> call, Throwable t) {
+                showToast("搜索失败：" + t.getMessage());
             }
         });
     }
@@ -415,10 +306,8 @@ public class MapFragment extends Fragment implements LocationSource, AMapLocatio
         Button btnCancel = dialogView.findViewById(R.id.btnCancel);
         Button btnSave = dialogView.findViewById(R.id.btnSave);
 
-        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(requireContext())
-                .setView(dialogView);
-
-        androidx.appcompat.app.AlertDialog dialog = builder.create();
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(requireContext()).setView(dialogView);
+        AlertDialog dialog = builder.create();
 
         btnCancel.setOnClickListener(v -> {
             currentAddMode = AddMode.NONE;
@@ -440,33 +329,12 @@ public class MapFragment extends Fragment implements LocationSource, AMapLocatio
             point.setAddress(address);
             point.setDescription(description);
 
-            createResourcePoint(point);
+            resourcePointManager.createResourcePoint(point);
             currentAddMode = AddMode.NONE;
             dialog.dismiss();
         });
 
         dialog.show();
-    }
-
-    private void createResourcePoint(ResourcePoint point) {
-        apiService.createResourcePoint(point).enqueue(new Callback<ApiResponse<ResourcePoint>>() {
-            @Override
-            public void onResponse(Call<ApiResponse<ResourcePoint>> call, Response<ApiResponse<ResourcePoint>> response) {
-                if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
-                    ResourcePoint created = response.body().getData();
-                    resourcePoints.add(created);
-                    addMarkerForResourcePoint(created);
-                    showToast("添加成功");
-                } else {
-                    showToast("添加失败");
-                }
-            }
-
-            @Override
-            public void onFailure(Call<ApiResponse<ResourcePoint>> call, Throwable t) {
-                showToast("添加失败: " + t.getMessage());
-            }
-        });
     }
 
     private void startDrawCableMode() {
@@ -496,17 +364,12 @@ public class MapFragment extends Fragment implements LocationSource, AMapLocatio
         }
 
         if (cableDrawPoints.size() >= 2) {
-            PolylineOptions options = new PolylineOptions()
-                    .addAll(cableDrawPoints)
-                    .width(10)
-                    .color(Color.RED);
+            PolylineOptions options = new PolylineOptions().addAll(cableDrawPoints).width(10).color(Color.RED);
             drawingPolyline = aMap.addPolyline(options);
             btnFinishDraw.setEnabled(true);
         }
 
-        MarkerOptions markerOptions = new MarkerOptions()
-                .position(latLng)
-                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_YELLOW));
+        MarkerOptions markerOptions = new MarkerOptions().position(latLng).icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_YELLOW));
         aMap.addMarker(markerOptions);
 
         tvDrawHint.setText("已选择 " + cableDrawPoints.size() + " 个点，继续点击或点击完成");
@@ -514,10 +377,9 @@ public class MapFragment extends Fragment implements LocationSource, AMapLocatio
 
     private void finishDrawCable() {
         if (cableDrawPoints.size() < 2) {
-            showToast("至少需要选择2个点");
+            showToast("至少需要选择 2 个点");
             return;
         }
-
         showCableSegmentDialog();
     }
 
@@ -543,10 +405,8 @@ public class MapFragment extends Fragment implements LocationSource, AMapLocatio
         Button btnCancel = dialogView.findViewById(R.id.btnCancel);
         Button btnSave = dialogView.findViewById(R.id.btnSave);
 
-        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(requireContext())
-                .setView(dialogView);
-
-        androidx.appcompat.app.AlertDialog dialog = builder.create();
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(requireContext()).setView(dialogView);
+        AlertDialog dialog = builder.create();
 
         btnCancel.setOnClickListener(v -> {
             cancelDrawCableMode();
@@ -583,33 +443,12 @@ public class MapFragment extends Fragment implements LocationSource, AMapLocatio
             }
             segment.setPoints(points);
 
-            createCableSegment(segment);
+            cableSegmentManager.createCableSegment(segment);
             cancelDrawCableMode();
             dialog.dismiss();
         });
 
         dialog.show();
-    }
-
-    private void createCableSegment(CableSegment segment) {
-        apiService.createCableSegment(segment).enqueue(new Callback<ApiResponse<CableSegment>>() {
-            @Override
-            public void onResponse(Call<ApiResponse<CableSegment>> call, Response<ApiResponse<CableSegment>> response) {
-                if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
-                    CableSegment created = response.body().getData();
-                    cableSegments.add(created);
-                    addPolylineForCableSegment(created);
-                    showToast("光缆段添加成功");
-                } else {
-                    showToast("光缆段添加失败");
-                }
-            }
-
-            @Override
-            public void onFailure(Call<ApiResponse<CableSegment>> call, Throwable t) {
-                showToast("光缆段添加失败: " + t.getMessage());
-            }
-        });
     }
 
     @Override
@@ -678,10 +517,8 @@ public class MapFragment extends Fragment implements LocationSource, AMapLocatio
         Button btnCancel = dialogView.findViewById(R.id.btnCancel);
         Button btnSave = dialogView.findViewById(R.id.btnSave);
 
-        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(requireContext())
-                .setView(dialogView);
-
-        androidx.appcompat.app.AlertDialog dialog = builder.create();
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(requireContext()).setView(dialogView);
+        AlertDialog dialog = builder.create();
 
         btnCancel.setOnClickListener(v -> dialog.dismiss());
 
@@ -701,66 +538,20 @@ public class MapFragment extends Fragment implements LocationSource, AMapLocatio
             point.setAddress(address);
             point.setDescription(description);
 
-            updateResourcePoint(point);
+            resourcePointManager.updateResourcePoint(point);
             dialog.dismiss();
         });
 
         dialog.show();
     }
 
-    private void updateResourcePoint(ResourcePoint point) {
-        apiService.updateResourcePoint(point.getId(), point).enqueue(new Callback<ApiResponse<ResourcePoint>>() {
-            @Override
-            public void onResponse(Call<ApiResponse<ResourcePoint>> call, Response<ApiResponse<ResourcePoint>> response) {
-                if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
-                    Marker marker = markerMap.get(point.getId());
-                    if (marker != null) {
-                        marker.remove();
-                    }
-                    addMarkerForResourcePoint(point);
-                    showToast("更新成功");
-                } else {
-                    showToast("更新失败");
-                }
-            }
-
-            @Override
-            public void onFailure(Call<ApiResponse<ResourcePoint>> call, Throwable t) {
-                showToast("更新失败: " + t.getMessage());
-            }
-        });
-    }
-
     private void showDeleteConfirmDialog(ResourcePoint point) {
         new MaterialAlertDialogBuilder(requireContext())
                 .setTitle("确认删除")
                 .setMessage("确定要删除资源点 \"" + point.getName() + "\" 吗？")
-                .setPositiveButton("删除", (dialog, which) -> deleteResourcePoint(point))
+                .setPositiveButton("删除", (dialog, which) -> resourcePointManager.deleteResourcePoint(point))
                 .setNegativeButton("取消", null)
                 .show();
-    }
-
-    private void deleteResourcePoint(ResourcePoint point) {
-        apiService.deleteResourcePoint(point.getId()).enqueue(new Callback<ApiResponse<Void>>() {
-            @Override
-            public void onResponse(Call<ApiResponse<Void>> call, Response<ApiResponse<Void>> response) {
-                if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
-                    resourcePoints.remove(point);
-                    Marker marker = markerMap.remove(point.getId());
-                    if (marker != null) {
-                        marker.remove();
-                    }
-                    showToast("删除成功");
-                } else {
-                    showToast("删除失败");
-                }
-            }
-
-            @Override
-            public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {
-                showToast("删除失败: " + t.getMessage());
-            }
-        });
     }
 
     @Override
@@ -789,7 +580,7 @@ public class MapFragment extends Fragment implements LocationSource, AMapLocatio
 
     private void showToast(String message) {
         if (getContext() != null) {
-            Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
+            android.widget.Toast.makeText(getContext(), message, android.widget.Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -833,8 +624,8 @@ public class MapFragment extends Fragment implements LocationSource, AMapLocatio
             if (object instanceof ResourcePoint) {
                 ResourcePoint point = (ResourcePoint) object;
                 tvName.setText(point.getName());
-                tvType.setText("类型: " + point.getType());
-                tvAddress.setText("地址: " + (point.getAddress() != null ? point.getAddress() : "无"));
+                tvType.setText("类型：" + point.getType());
+                tvAddress.setText("地址：" + (point.getAddress() != null ? point.getAddress() : "无"));
             }
 
             return view;
