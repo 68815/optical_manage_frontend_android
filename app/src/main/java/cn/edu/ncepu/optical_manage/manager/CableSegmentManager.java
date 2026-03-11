@@ -101,12 +101,12 @@ public class CableSegmentManager {
                 if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
                     CableSegment created = response.body().getData();
                     addPolyline(created);
-                    showToast("光缆段添加成功");
+                    showToast("光缆段添加成功：" + created.getName());
                     if (listener != null) {
                         listener.onCableSegmentsUpdated();
                     }
                 } else {
-                    showToast("光缆段添加失败");
+                    showToast("光缆段添加失败：" + response.body().getMessage()); 
                 }
             }
 

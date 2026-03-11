@@ -109,12 +109,12 @@ public class ResourcePointManager {
                 if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
                     ResourcePoint created = response.body().getData();
                     addMarker(created);
-                    showToast("添加成功");
+                    showToast("添加成功：" + created.getName());
                     if (listener != null) {
                         listener.onResourcePointsUpdated();
                     }
                 } else {
-                    showToast("添加失败");
+                    showToast("添加失败：" + response.body().getMessage());
                 }
             }
 
@@ -140,7 +140,7 @@ public class ResourcePointManager {
                         listener.onResourcePointsUpdated();
                     }
                 } else {
-                    showToast("更新失败");
+                    showToast("更新失败：" + response.body().getMessage());
                 }
             }
 
@@ -162,7 +162,7 @@ public class ResourcePointManager {
                         listener.onResourcePointsUpdated();
                     }
                 } else {
-                    showToast("删除失败");
+                    showToast("删除失败：" + response.body().getMessage());
                 }
             }
 
