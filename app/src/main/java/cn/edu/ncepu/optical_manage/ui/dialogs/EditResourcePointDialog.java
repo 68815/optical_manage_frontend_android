@@ -3,9 +3,11 @@ package cn.edu.ncepu.optical_manage.ui.dialogs;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.Spinner;
+import android.widget.TextView;
 
 import androidx.appcompat.app.AlertDialog;
 
@@ -27,9 +29,12 @@ public class EditResourcePointDialog {
 
     private TextInputEditText etName;
     private Spinner spinnerType;
+    private Spinner spinnerStatus;
     private TextInputEditText etAddress;
-    private TextInputEditText etDescription;
     private ResourcePoint currentPoint;
+
+    private ResourcePoint.ResourceType selectedType;
+    private String selectedStatus;
 
     public EditResourcePointDialog(androidx.fragment.app.Fragment fragment,
                                     OnResourcePointUpdateListener updateListener) {
@@ -39,6 +44,8 @@ public class EditResourcePointDialog {
 
     public void show(ResourcePoint point) {
         this.currentPoint = point;
+        this.selectedType = point.getType();
+        this.selectedStatus = point.getStatus() != null ? point.getStatus() : ResourcePoint.STATUS_NORMAL;
         
         View dialogView = LayoutInflater.from(fragment.requireContext())
                 .inflate(R.layout.dialog_resource_point, null);
@@ -56,32 +63,82 @@ public class EditResourcePointDialog {
     private void initViews(View dialogView) {
         etName = dialogView.findViewById(R.id.etName);
         spinnerType = dialogView.findViewById(R.id.spinnerType);
+        spinnerStatus = dialogView.findViewById(R.id.spinnerStatus);
         etAddress = dialogView.findViewById(R.id.etAddress);
-        etDescription = dialogView.findViewById(R.id.etDescription);
         
-        com.google.android.material.textview.MaterialTextView tvDialogTitle = 
-                dialogView.findViewById(R.id.tvDialogTitle);
+        TextView tvDialogTitle = dialogView.findViewById(R.id.tvDialogTitle);
         tvDialogTitle.setText("编辑资源点");
     }
 
     private void populateData(ResourcePoint point) {
         etName.setText(point.getName());
         etAddress.setText(point.getAddress());
-        etDescription.setText(point.getDescription());
 
-        String[] types = {ResourcePoint.TYPE_POLE, ResourcePoint.TYPE_MANHOLE, 
-                          ResourcePoint.TYPE_BUSINESS_HALL};
+        setupTypeSpinner(point);
+        setupStatusSpinner(point.getStatus());
+    }
+
+    private void setupTypeSpinner(ResourcePoint currentType) {
+        ResourcePoint.ResourceType[] types = ResourcePoint.ResourceType.values();
+        String[] displayNames = new String[types.length];
+        for (int i = 0; i < types.length; i++) {
+            displayNames[i] = types[i].getDisplayName();
+        }
+
         ArrayAdapter<String> adapter = new ArrayAdapter<>(fragment.requireContext(),
-                android.R.layout.simple_spinner_item, types);
+                android.R.layout.simple_spinner_item, displayNames);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerType.setAdapter(adapter);
 
-        for (int i = 0; i < types.length; i++) {
-            if (types[i].equals(point.getType())) {
-                spinnerType.setSelection(i);
-                break;
+        if (currentType != null) {
+            for (int i = 0; i < types.length; i++) {
+                if (types[i] == currentPoint.getType()) {
+                    spinnerType.setSelection(i);
+                    break;
+                }
             }
         }
+
+        spinnerType.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                selectedType = types[position];
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        });
+    }
+
+    private void setupStatusSpinner(String currentStatus) {
+        String[] statusValues = {ResourcePoint.STATUS_NORMAL, ResourcePoint.STATUS_FAULT, ResourcePoint.STATUS_MAINTENANCE};
+        String[] statusDisplayNames = {"正常", "故障", "维护中"};
+
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(fragment.requireContext(),
+                android.R.layout.simple_spinner_item, statusDisplayNames);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerStatus.setAdapter(adapter);
+
+        if (currentStatus != null) {
+            for (int i = 0; i < statusValues.length; i++) {
+                if (statusValues[i].equals(currentStatus)) {
+                    spinnerStatus.setSelection(i);
+                    break;
+                }
+            }
+        }
+
+        spinnerStatus.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                selectedStatus = statusValues[position];
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        });
     }
 
     private void setupButtons() {
@@ -92,9 +149,7 @@ public class EditResourcePointDialog {
 
         btnSave.setOnClickListener(v -> {
             String name = etName.getText().toString().trim();
-            String type = (String) spinnerType.getSelectedItem();
             String address = etAddress.getText().toString().trim();
-            String description = etDescription.getText().toString().trim();
 
             if (TextUtils.isEmpty(name)) {
                 showToast("请输入名称");
@@ -102,9 +157,9 @@ public class EditResourcePointDialog {
             }
 
             currentPoint.setName(name);
-            currentPoint.setType(type);
+            currentPoint.setType(selectedType);
             currentPoint.setAddress(address);
-            currentPoint.setDescription(description);
+            currentPoint.setStatus(selectedStatus);
 
             if (updateListener != null) {
                 updateListener.onUpdate(currentPoint);

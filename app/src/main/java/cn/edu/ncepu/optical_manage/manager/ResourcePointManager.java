@@ -80,7 +80,7 @@ public class ResourcePointManager {
         MarkerOptions markerOptions = new MarkerOptions()
                 .position(latLng)
                 .title(point.getName())
-                .snippet("类型：" + point.getType())
+                .snippet("类型：" + (point.getType() != null ? point.getType().getDisplayName() : "未知"))
                 .icon(BitmapDescriptorFactory.defaultMarker(markerColor));
 
         Marker marker = aMap.addMarker(markerOptions);
@@ -88,15 +88,23 @@ public class ResourcePointManager {
         markerMap.put(point.getId(), marker);
     }
 
-    private float getMarkerColor(String type) {
+    private float getMarkerColor(ResourcePoint.ResourceType type) {
         if (type == null) return BitmapDescriptorFactory.HUE_RED;
         switch (type) {
-            case ResourcePoint.TYPE_POLE:
+            case POLE:
                 return BitmapDescriptorFactory.HUE_BLUE;
-            case ResourcePoint.TYPE_MANHOLE:
+            case MANHOLE:
                 return BitmapDescriptorFactory.HUE_GREEN;
-            case ResourcePoint.TYPE_BUSINESS_HALL:
+            case OFFICE:
                 return BitmapDescriptorFactory.HUE_ORANGE;
+            case CABINET:
+                return BitmapDescriptorFactory.HUE_YELLOW;
+            case BASE_STATION:
+                return BitmapDescriptorFactory.HUE_VIOLET;
+            case DISTRIBUTION_BOX:
+                return BitmapDescriptorFactory.HUE_CYAN;
+            case USER_TERMINAL:
+                return BitmapDescriptorFactory.HUE_ROSE;
             default:
                 return BitmapDescriptorFactory.HUE_RED;
         }
@@ -114,7 +122,8 @@ public class ResourcePointManager {
                         listener.onResourcePointsUpdated();
                     }
                 } else {
-                    showToast("添加失败：" + response.body().getMessage());
+                    String message = response.body() != null ? response.body().getMessage() : "未知错误";
+                    showToast("添加失败：" + message);
                 }
             }
 
@@ -140,7 +149,8 @@ public class ResourcePointManager {
                         listener.onResourcePointsUpdated();
                     }
                 } else {
-                    showToast("更新失败：" + response.body().getMessage());
+                    String message = response.body() != null ? response.body().getMessage() : "未知错误";
+                    showToast("更新失败：" + message);
                 }
             }
 
@@ -156,13 +166,17 @@ public class ResourcePointManager {
             @Override
             public void onResponse(Call<ApiResponse<Void>> call, Response<ApiResponse<Void>> response) {
                 if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
-                    markerMap.remove(point.getId()).remove();
+                    Marker marker = markerMap.remove(point.getId());
+                    if (marker != null) {
+                        marker.remove();
+                    }
                     showToast("删除成功");
                     if (listener != null) {
                         listener.onResourcePointsUpdated();
                     }
                 } else {
-                    showToast("删除失败：" + response.body().getMessage());
+                    String message = response.body() != null ? response.body().getMessage() : "未知错误";
+                    showToast("删除失败：" + message);
                 }
             }
 

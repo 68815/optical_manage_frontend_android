@@ -28,13 +28,20 @@ public class AddResourcePointDialog {
     private final OnResourcePointSaveListener saveListener;
     private final Runnable dismissCallback;
 
+    private View dialogView;
     private TextInputEditText etName;
     private Spinner spinnerType;
+    private Spinner spinnerStatus;
     private TextInputEditText etAddress;
-    private TextInputEditText etDescription;
     private TextView tvDialogTitle;
+    private Button btnCancel;
+    private Button btnSave;
 
-    private String selectedType = ResourcePoint.TYPE_POLE;
+    private ResourcePoint.ResourceType selectedType = ResourcePoint.ResourceType.POLE;
+    private String selectedStatus = ResourcePoint.STATUS_NORMAL;
+
+    private double latitude;
+    private double longitude;
 
     public AddResourcePointDialog(androidx.fragment.app.Fragment fragment,
                                    OnResourcePointSaveListener saveListener,
@@ -44,13 +51,17 @@ public class AddResourcePointDialog {
         this.dismissCallback = dismissCallback;
     }
 
-    public void show(double latitude, double longitude, String defaultType, String title) {
-        View dialogView = LayoutInflater.from(fragment.requireContext())
+    public void show(double latitude, double longitude, ResourcePoint.ResourceType defaultType, String title) {
+        this.latitude = latitude;
+        this.longitude = longitude;
+        
+        dialogView = LayoutInflater.from(fragment.requireContext())
                 .inflate(R.layout.dialog_resource_point, null);
         
         initViews(dialogView);
-        setupSpinner(defaultType);
-        setupButtons(latitude, longitude, title);
+        setupTypeSpinner(defaultType);
+        setupStatusSpinner();
+        setupButtons(title);
 
         MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(fragment.requireContext())
                 .setView(dialogView);
@@ -58,24 +69,30 @@ public class AddResourcePointDialog {
         dialog.show();
     }
 
-    private void initViews(View dialogView) {
-        etName = dialogView.findViewById(R.id.etName);
-        spinnerType = dialogView.findViewById(R.id.spinnerType);
-        etAddress = dialogView.findViewById(R.id.etAddress);
-        etDescription = dialogView.findViewById(R.id.etDescription);
-        tvDialogTitle = dialogView.findViewById(R.id.tvDialogTitle);
+    private void initViews(View view) {
+        etName = view.findViewById(R.id.etName);
+        spinnerType = view.findViewById(R.id.spinnerType);
+        spinnerStatus = view.findViewById(R.id.spinnerStatus);
+        etAddress = view.findViewById(R.id.etAddress);
+        tvDialogTitle = view.findViewById(R.id.tvDialogTitle);
+        btnCancel = view.findViewById(R.id.btnCancel);
+        btnSave = view.findViewById(R.id.btnSave);
     }
 
-    private void setupSpinner(String defaultType) {
-        String[] types = {ResourcePoint.TYPE_POLE, ResourcePoint.TYPE_MANHOLE, 
-                          ResourcePoint.TYPE_BUSINESS_HALL};
+    private void setupTypeSpinner(ResourcePoint.ResourceType defaultType) {
+        ResourcePoint.ResourceType[] types = ResourcePoint.ResourceType.values();
+        String[] displayNames = new String[types.length];
+        for (int i = 0; i < types.length; i++) {
+            displayNames[i] = types[i].getDisplayName();
+        }
+
         ArrayAdapter<String> adapter = new ArrayAdapter<>(fragment.requireContext(),
-                android.R.layout.simple_spinner_item, types);
+                android.R.layout.simple_spinner_item, displayNames);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerType.setAdapter(adapter);
 
         for (int i = 0; i < types.length; i++) {
-            if (types[i].equals(defaultType)) {
+            if (types[i] == defaultType) {
                 spinnerType.setSelection(i);
                 break;
             }
@@ -93,11 +110,29 @@ public class AddResourcePointDialog {
         });
     }
 
-    private void setupButtons(double latitude, double longitude, String title) {
-        tvDialogTitle.setText(title);
+    private void setupStatusSpinner() {
+        String[] statusValues = {ResourcePoint.STATUS_NORMAL, ResourcePoint.STATUS_FAULT, ResourcePoint.STATUS_MAINTENANCE};
+        String[] statusDisplayNames = {"正常", "故障", "维护中"};
 
-        Button btnCancel = ((View) etName.getParent().getParent()).findViewById(R.id.btnCancel);
-        Button btnSave = ((View) etName.getParent().getParent()).findViewById(R.id.btnSave);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(fragment.requireContext(),
+                android.R.layout.simple_spinner_item, statusDisplayNames);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerStatus.setAdapter(adapter);
+
+        spinnerStatus.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                selectedStatus = statusValues[position];
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        });
+    }
+
+    private void setupButtons(String title) {
+        tvDialogTitle.setText(title);
 
         btnCancel.setOnClickListener(v -> {
             if (dismissCallback != null) {
@@ -109,7 +144,6 @@ public class AddResourcePointDialog {
         btnSave.setOnClickListener(v -> {
             String name = etName.getText().toString().trim();
             String address = etAddress.getText().toString().trim();
-            String description = etDescription.getText().toString().trim();
 
             if (TextUtils.isEmpty(name)) {
                 showToast("请输入名称");
@@ -118,7 +152,7 @@ public class AddResourcePointDialog {
 
             ResourcePoint point = new ResourcePoint(name, selectedType, latitude, longitude);
             point.setAddress(address);
-            point.setDescription(description);
+            point.setStatus(selectedStatus);
 
             if (saveListener != null) {
                 saveListener.onSave(point);

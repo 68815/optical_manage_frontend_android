@@ -31,7 +31,6 @@ import cn.edu.ncepu.optical_manage.api.ApiClient;
 import cn.edu.ncepu.optical_manage.api.ApiService;
 import cn.edu.ncepu.optical_manage.manager.CableSegmentManager;
 import cn.edu.ncepu.optical_manage.manager.ResourcePointManager;
-import cn.edu.ncepu.optical_manage.model.CableSegment;
 import cn.edu.ncepu.optical_manage.model.ResourcePoint;
 import cn.edu.ncepu.optical_manage.ui.adapters.ResourcePointInfoWindowAdapter;
 import cn.edu.ncepu.optical_manage.ui.dialogs.AddResourcePointDialog;
@@ -61,9 +60,7 @@ public class MapFragment extends Fragment implements
     private Button btnCancelDraw;
     private Button btnFinishDraw;
 
-    private FloatingActionButton fabAddPole;
-    private FloatingActionButton fabAddManhole;
-    private FloatingActionButton fabAddBusinessHall;
+    private FloatingActionButton fabAddResourcePoint;
     private FloatingActionButton fabDrawCable;
     private FloatingActionButton fabRefresh;
 
@@ -77,7 +74,9 @@ public class MapFragment extends Fragment implements
     private List<ResourcePoint> resourcePoints = new ArrayList<>();
 
     private enum AddMode {
-        NONE, POLE, MANHOLE, BUSINESS_HALL
+        NONE,
+        RESOURCE_POINT,
+        CABLE
     }
 
     @Override
@@ -93,9 +92,9 @@ public class MapFragment extends Fragment implements
         View view = inflater.inflate(R.layout.fragment_map, container, false);
 
         initViews(view);
+        initHelpers();
         initMap(savedInstanceState);
         initManagers();
-        initHelpers();
         initListeners();
         checkPermissions();
 
@@ -111,9 +110,7 @@ public class MapFragment extends Fragment implements
         btnCancelDraw = view.findViewById(R.id.btnCancelDraw);
         btnFinishDraw = view.findViewById(R.id.btnFinishDraw);
 
-        fabAddPole = view.findViewById(R.id.fabAddPole);
-        fabAddManhole = view.findViewById(R.id.fabAddManhole);
-        fabAddBusinessHall = view.findViewById(R.id.fabAddBusinessHall);
+        fabAddResourcePoint = view.findViewById(R.id.fabAddResourcePoint);
         fabDrawCable = view.findViewById(R.id.fabDrawCable);
         fabRefresh = view.findViewById(R.id.fabRefresh);
     }
@@ -154,12 +151,14 @@ public class MapFragment extends Fragment implements
             @Override
             public void onDrawCancelled() {
                 hideDrawPanel();
+                currentAddMode = AddMode.NONE;
             }
 
             @Override
             public void onDrawFinished() {
                 hideDrawPanel();
                 loadData();
+                currentAddMode = AddMode.NONE;
             }
         });
 
@@ -169,22 +168,13 @@ public class MapFragment extends Fragment implements
     private void initListeners() {
         searchButton.setOnClickListener(v -> performSearch());
 
-        fabAddPole.setOnClickListener(v -> {
-            currentAddMode = AddMode.POLE;
-            showToast("点击地图添加电杆");
-        });
-
-        fabAddManhole.setOnClickListener(v -> {
-            currentAddMode = AddMode.MANHOLE;
-            showToast("点击地图添加人井");
-        });
-
-        fabAddBusinessHall.setOnClickListener(v -> {
-            currentAddMode = AddMode.BUSINESS_HALL;
-            showToast("点击地图添加营业厅");
+        fabAddResourcePoint.setOnClickListener(v -> {
+            currentAddMode = AddMode.RESOURCE_POINT;
+            showToast("点击地图添加资源点");
         });
 
         fabDrawCable.setOnClickListener(v -> {
+            currentAddMode = AddMode.CABLE;
             cableDrawHelper.setResourcePoints(resourcePoints);
             cableDrawHelper.startDrawCableMode();
             showDrawPanel();
@@ -195,6 +185,7 @@ public class MapFragment extends Fragment implements
         btnCancelDraw.setOnClickListener(v -> {
             cableDrawHelper.cancelDrawCableMode();
             hideDrawPanel();
+            currentAddMode = AddMode.NONE;
         });
 
         btnFinishDraw.setOnClickListener(v -> cableDrawHelper.finishDrawCable());
@@ -209,11 +200,11 @@ public class MapFragment extends Fragment implements
         String hint = "";
         switch (mode) {
             case SELECT_START:
-                hint = "请点击地图选择起点";
+                hint = "请点击地图选择起点（资源点）";
                 btnFinishDraw.setEnabled(false);
                 break;
             case SELECT_END:
-                hint = "起点已选择，请点击地图选择终点";
+                hint = "起点已选择，请点击地图选择终点（资源点）";
                 btnFinishDraw.setEnabled(false);
                 break;
             case ADD_WAYPOINTS:
@@ -320,35 +311,21 @@ public class MapFragment extends Fragment implements
 
     @Override
     public void onMapClick(LatLng latLng) {
-        if (currentAddMode != AddMode.NONE) {
-            showAddResourcePointDialog(latLng);
-        } else if (cableDrawHelper.isDrawCableMode()) {
-            cableDrawHelper.handleMapClick(latLng);
-            updateDrawPanel(true, cableDrawHelper.getCurrentDrawMode());
+        switch (currentAddMode) {
+            case RESOURCE_POINT:
+                showAddResourcePointDialog(latLng);
+                break;
+            case CABLE:
+                cableDrawHelper.handleMapClick(latLng);
+                updateDrawPanel(true, cableDrawHelper.getCurrentDrawMode());
+                break;
+            case NONE:
+            default:
+                break;
         }
     }
 
     private void showAddResourcePointDialog(LatLng latLng) {
-        String defaultType;
-        String title;
-        
-        switch (currentAddMode) {
-            case POLE:
-                defaultType = ResourcePoint.TYPE_POLE;
-                title = "添加电杆";
-                break;
-            case MANHOLE:
-                defaultType = ResourcePoint.TYPE_MANHOLE;
-                title = "添加人井";
-                break;
-            case BUSINESS_HALL:
-                defaultType = ResourcePoint.TYPE_BUSINESS_HALL;
-                title = "添加营业厅";
-                break;
-            default:
-                return;
-        }
-
         AddResourcePointDialog dialog = new AddResourcePointDialog(
                 this,
                 point -> {
@@ -357,7 +334,7 @@ public class MapFragment extends Fragment implements
                 },
                 () -> currentAddMode = AddMode.NONE
         );
-        dialog.show(latLng.latitude, latLng.longitude, defaultType, title);
+        dialog.show(latLng.latitude, latLng.longitude, ResourcePoint.ResourceType.POLE, "添加资源点");
     }
 
     @Override

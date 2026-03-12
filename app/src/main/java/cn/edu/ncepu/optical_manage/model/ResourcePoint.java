@@ -3,14 +3,14 @@ package cn.edu.ncepu.optical_manage.model;
 import com.google.gson.annotations.SerializedName;
 
 public class ResourcePoint {
-    @SerializedName("id")
+    @SerializedName("point_id")
     private Long id;
 
     @SerializedName("name")
     private String name;
 
     @SerializedName("type")
-    private String type;
+    private ResourceType type;
 
     @SerializedName("latitude")
     private double latitude;
@@ -21,27 +21,65 @@ public class ResourcePoint {
     @SerializedName("address")
     private String address;
 
-    @SerializedName("description")
-    private String description;
+    @SerializedName("status")
+    private String status;
 
-    @SerializedName("createTime")
+    @SerializedName("created_at")
     private String createTime;
 
-    @SerializedName("updateTime")
+    @SerializedName("updated_at")
     private String updateTime;
 
-    public static final String TYPE_POLE = "电杆";
-    public static final String TYPE_MANHOLE = "人井";
-    public static final String TYPE_BUSINESS_HALL = "营业厅";
+    public enum ResourceType {
+        POLE("pole", "电杆"),
+        MANHOLE("manhole", "人井"),
+        OFFICE("office", "营业厅"),
+        CABINET("cabinet", "光交箱"),
+        BASE_STATION("base_station", "基站"),
+        DISTRIBUTION_BOX("distribution_box", "分纤箱"),
+        USER_TERMINAL("user_terminal", "用户终端");
 
-    public ResourcePoint() {
+        private final String value;
+        private final String displayName;
+
+        ResourceType(String value, String displayName) {
+            this.value = value;
+            this.displayName = displayName;
+        }
+
+        public String getValue() {
+            return value;
+        }
+
+        public String getDisplayName() {
+            return displayName;
+        }
+
+        public static ResourceType fromValue(String value) {
+            if (value == null) return POLE;
+            for (ResourceType type : values()) {
+                if (type.value.equals(value)) {
+                    return type;
+                }
+            }
+            return POLE;
+        }
     }
 
-    public ResourcePoint(String name, String type, double latitude, double longitude) {
+    public static final String STATUS_NORMAL = "normal";
+    public static final String STATUS_FAULT = "fault";
+    public static final String STATUS_MAINTENANCE = "maintenance";
+
+    public ResourcePoint() {
+        this.status = STATUS_NORMAL;
+    }
+
+    public ResourcePoint(String name, ResourceType type, double latitude, double longitude) {
         this.name = name;
         this.type = type;
         this.latitude = latitude;
         this.longitude = longitude;
+        this.status = STATUS_NORMAL;
     }
 
     public Long getId() {
@@ -60,12 +98,20 @@ public class ResourcePoint {
         this.name = name;
     }
 
-    public String getType() {
+    public ResourceType getType() {
         return type;
     }
 
-    public void setType(String type) {
+    public void setType(ResourceType type) {
         this.type = type;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 
     public double getLatitude() {
@@ -90,14 +136,6 @@ public class ResourcePoint {
 
     public void setAddress(String address) {
         this.address = address;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
     }
 
     public String getCreateTime() {
