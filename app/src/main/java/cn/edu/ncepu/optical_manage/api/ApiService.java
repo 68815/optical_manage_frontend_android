@@ -3,6 +3,7 @@ package cn.edu.ncepu.optical_manage.api;
 import cn.edu.ncepu.optical_manage.model.ApiResponse;
 import cn.edu.ncepu.optical_manage.model.CableSegment;
 import cn.edu.ncepu.optical_manage.model.ResourcePoint;
+import cn.edu.ncepu.optical_manage.model.ResourceRequest;
 import retrofit2.Call;
 import retrofit2.http.Body;
 import retrofit2.http.DELETE;
@@ -14,42 +15,42 @@ import retrofit2.http.Query;
 import java.util.List;
 
 public interface ApiService {
-    @GET("/api/resource-points")
+    @GET("/api/v1/map/resource-point")
     Call<ApiResponse<List<ResourcePoint>>> getAllResourcePoints();
 
-    @GET("/api/resource-points/{id}")
+    @GET("/api/v1/map/resource-point/{id}")
     Call<ApiResponse<ResourcePoint>> getResourcePointById(@Path("id") Long id);
 
-    @GET("/api/resource-points/search")
+    @GET("/api/v1/map/resource-point/search")
     Call<ApiResponse<List<ResourcePoint>>> searchResourcePoints(@Query("keyword") String keyword);
 
-    @GET("/api/resource-points/type/{type}")
+    @GET("/api/v1/map/resource-point/type/{type}")
     Call<ApiResponse<List<ResourcePoint>>> getResourcePointsByType(@Path("type") String type);
 
-    @POST("/api/resource-points")
-    Call<ApiResponse<ResourcePoint>> createResourcePoint(@Body ResourcePoint resourcePoint);
+    @POST("/api/v1/map/resource-point")
+    Call<ApiResponse<ResourcePoint>> createResourcePoint(@Body ResourceRequest resourceRequest);
 
-    @PUT("/api/resource-points/{id}")
-    Call<ApiResponse<ResourcePoint>> updateResourcePoint(@Path("id") Long id, @Body ResourcePoint resourcePoint);
+    @PUT("/api/v1/map/resource-point/{id}")
+    Call<ApiResponse<ResourcePoint>> updateResourcePoint(@Path("id") Long id, @Body ResourceRequest resourceRequest);
 
-    @DELETE("/api/resource-points/{id}")
+    @DELETE("/api/v1/map/resource-point/{id}")
     Call<ApiResponse<Void>> deleteResourcePoint(@Path("id") Long id);
 
-    @GET("/api/cable-segments")
+    @GET("/api/v1/map/cable-segments")
     Call<ApiResponse<List<CableSegment>>> getAllCableSegments();
 
-    @GET("/api/cable-segments/{id}")
+    @GET("/api/v1/map/cable-segments/{id}")
     Call<ApiResponse<CableSegment>> getCableSegmentById(@Path("id") Long id);
 
-    @GET("/api/cable-segments/search")
+    @GET("/api/v1/map/cable-segments/search")
     Call<ApiResponse<List<CableSegment>>> searchCableSegments(@Query("keyword") String keyword);
 
-    @POST("/api/cable-segments")
+    @POST("/api/v1/map/cable-segments")
     Call<ApiResponse<CableSegment>> createCableSegment(@Body CableSegment cableSegment);
 
-    @PUT("/api/cable-segments/{id}")
+    @PUT("/api/v1/map/cable-segments/{id}")
     Call<ApiResponse<CableSegment>> updateCableSegment(@Path("id") Long id, @Body CableSegment cableSegment);
 
-    @DELETE("/api/cable-segments/{id}")
+    @DELETE("/api/v1/map/cable-segments/{id}")
     Call<ApiResponse<Void>> deleteCableSegment(@Path("id") Long id);
 }

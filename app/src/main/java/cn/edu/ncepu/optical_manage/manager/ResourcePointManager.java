@@ -8,6 +8,7 @@ import com.amap.api.maps.model.BitmapDescriptorFactory;
 import com.amap.api.maps.model.LatLng;
 import com.amap.api.maps.model.Marker;
 import com.amap.api.maps.model.MarkerOptions;
+import com.google.gson.Gson;
 
 import java.util.HashMap;
 import java.util.List;
@@ -16,6 +17,7 @@ import java.util.Map;
 import cn.edu.ncepu.optical_manage.api.ApiService;
 import cn.edu.ncepu.optical_manage.model.ApiResponse;
 import cn.edu.ncepu.optical_manage.model.ResourcePoint;
+import cn.edu.ncepu.optical_manage.model.ResourceRequest;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -27,6 +29,7 @@ public class ResourcePointManager {
     private Context context;
     private Map<Long, Marker> markerMap = new HashMap<>();
     private OnResourcePointChangedListener listener;
+    private Gson gson = new Gson();
 
     public interface OnResourcePointChangedListener {
         void onResourcePointsUpdated();
@@ -61,8 +64,10 @@ public class ResourcePointManager {
 
     private void updateMarkers(List<ResourcePoint> points) {
         clearAllMarkers();
-        for (ResourcePoint point : points) {
-            addMarker(point);
+        if (points != null) {
+            for (ResourcePoint point : points) {
+                addMarker(point);
+            }
         }
     }
 
@@ -74,6 +79,8 @@ public class ResourcePointManager {
     }
 
     public void addMarker(ResourcePoint point) {
+        if (point == null) return;
+        
         LatLng latLng = new LatLng(point.getLatitude(), point.getLongitude());
         float markerColor = getMarkerColor(point.getType());
 
@@ -85,7 +92,9 @@ public class ResourcePointManager {
 
         Marker marker = aMap.addMarker(markerOptions);
         marker.setObject(point);
-        markerMap.put(point.getId(), marker);
+        if (point.getId() != null) {
+            markerMap.put(point.getId(), marker);
+        }
     }
 
     private float getMarkerColor(ResourcePoint.ResourceType type) {
@@ -111,7 +120,9 @@ public class ResourcePointManager {
     }
 
     public void createResourcePoint(ResourcePoint point) {
-        apiService.createResourcePoint(point).enqueue(new Callback<ApiResponse<ResourcePoint>>() {
+        ResourceRequest request = convertToRequest(point);
+        
+        apiService.createResourcePoint(request).enqueue(new Callback<ApiResponse<ResourcePoint>>() {
             @Override
             public void onResponse(Call<ApiResponse<ResourcePoint>> call, Response<ApiResponse<ResourcePoint>> response) {
                 if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
@@ -135,7 +146,9 @@ public class ResourcePointManager {
     }
 
     public void updateResourcePoint(ResourcePoint point) {
-        apiService.updateResourcePoint(point.getId(), point).enqueue(new Callback<ApiResponse<ResourcePoint>>() {
+        ResourceRequest request = convertToRequest(point);
+        
+        apiService.updateResourcePoint(point.getId(), request).enqueue(new Callback<ApiResponse<ResourcePoint>>() {
             @Override
             public void onResponse(Call<ApiResponse<ResourcePoint>> call, Response<ApiResponse<ResourcePoint>> response) {
                 if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
@@ -159,6 +172,27 @@ public class ResourcePointManager {
                 showToast("更新失败：" + t.getMessage());
             }
         });
+    }
+
+    private ResourceRequest convertToRequest(ResourcePoint point) {
+        Map<String, Object> propsMap = new HashMap<>();
+        propsMap.put("name", point.getName() != null ? point.getName() : "");
+        propsMap.put("address", point.getAddress() != null ? point.getAddress() : "");
+        propsMap.put("status", point.getStatus() != null ? point.getStatus() : "normal");
+        
+        String propsJson = gson.toJson(propsMap);
+        
+        String typeValue = "pole";
+        if (point.getType() != null) {
+            typeValue = point.getType().getValue();
+        }
+        
+        return new ResourceRequest(
+                typeValue,
+                point.getLatitude(),
+                point.getLongitude(),
+                propsJson
+        );
     }
 
     public void deleteResourcePoint(ResourcePoint point) {
