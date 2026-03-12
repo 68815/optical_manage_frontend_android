@@ -92,9 +92,10 @@ public class MapFragment extends Fragment implements
         View view = inflater.inflate(R.layout.fragment_map, container, false);
 
         initViews(view);
-        initHelpers();
+        initLocationHelper();
         initMap(savedInstanceState);
         initManagers();
+        initCableDrawHelper();
         initListeners();
         checkPermissions();
 
@@ -138,9 +139,11 @@ public class MapFragment extends Fragment implements
         cableSegmentManager.setOnCableSegmentChangedListener(() -> {});
     }
 
-    private void initHelpers() {
+    private void initLocationHelper() {
         locationHelper = new LocationHelper(requireContext());
-        
+    }
+
+    private void initCableDrawHelper() {
         cableDrawHelper = new CableDrawHelper(aMap, this, cableSegmentManager, 
                 new CableDrawHelper.OnCableDrawListener() {
             @Override
