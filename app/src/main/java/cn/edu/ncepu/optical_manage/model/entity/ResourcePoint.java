@@ -12,14 +12,11 @@ public class ResourcePoint {
     @SerializedName("type")
     private ResourceType type;
 
-    @SerializedName("latitude")
+    @SerializedName("lat")
     private double latitude;
 
-    @SerializedName("longitude")
+    @SerializedName("lng")
     private double longitude;
-
-    @SerializedName("address")
-    private String address;
 
     @SerializedName("status")
     private String status;
@@ -29,6 +26,9 @@ public class ResourcePoint {
 
     @SerializedName("updated_at")
     private String updateTime;
+
+    @SerializedName("address")
+    private String address;
 
     public enum ResourceType {
         POLE("pole", "电杆"),
@@ -130,14 +130,6 @@ public class ResourcePoint {
         this.longitude = longitude;
     }
 
-    public String getAddress() {
-        return address;
-    }
-
-    public void setAddress(String address) {
-        this.address = address;
-    }
-
     public String getCreateTime() {
         return createTime;
     }
@@ -152,5 +144,13 @@ public class ResourcePoint {
 
     public void setUpdateTime(String updateTime) {
         this.updateTime = updateTime;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
     }
 }

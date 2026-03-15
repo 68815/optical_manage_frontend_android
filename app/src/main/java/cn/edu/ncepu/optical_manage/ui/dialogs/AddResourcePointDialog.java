@@ -32,7 +32,6 @@ public class AddResourcePointDialog {
     private TextInputEditText etName;
     private Spinner spinnerType;
     private Spinner spinnerStatus;
-    private TextInputEditText etAddress;
     private TextView tvDialogTitle;
     private Button btnCancel;
     private Button btnSave;
@@ -73,7 +72,6 @@ public class AddResourcePointDialog {
         etName = view.findViewById(R.id.etName);
         spinnerType = view.findViewById(R.id.spinnerType);
         spinnerStatus = view.findViewById(R.id.spinnerStatus);
-        etAddress = view.findViewById(R.id.etAddress);
         tvDialogTitle = view.findViewById(R.id.tvDialogTitle);
         btnCancel = view.findViewById(R.id.btnCancel);
         btnSave = view.findViewById(R.id.btnSave);
@@ -143,7 +141,6 @@ public class AddResourcePointDialog {
 
         btnSave.setOnClickListener(v -> {
             String name = etName.getText().toString().trim();
-            String address = etAddress.getText().toString().trim();
 
             if (TextUtils.isEmpty(name)) {
                 showToast("请输入名称");
@@ -151,7 +148,6 @@ public class AddResourcePointDialog {
             }
 
             ResourcePoint point = new ResourcePoint(name, selectedType, latitude, longitude);
-            point.setAddress(address);
             point.setStatus(selectedStatus);
 
             if (saveListener != null) {

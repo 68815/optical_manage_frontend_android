@@ -177,7 +177,6 @@ public class ResourcePointManager {
     private ResourceRequest convertToRequest(ResourcePoint point) {
         Map<String, Object> propsMap = new HashMap<>();
         propsMap.put("name", point.getName() != null ? point.getName() : "");
-        propsMap.put("address", point.getAddress() != null ? point.getAddress() : "");
         propsMap.put("status", point.getStatus() != null ? point.getStatus() : "normal");
         
         String propsJson = gson.toJson(propsMap);
