@@ -30,7 +30,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import cn.edu.ncepu.optical_manage.R;
-import cn.edu.ncepu.optical_manage.manager.CableSegmentManager;
 import cn.edu.ncepu.optical_manage.model.CableSegment;
 import cn.edu.ncepu.optical_manage.model.ResourcePoint;
 
@@ -46,11 +45,11 @@ public class CableDrawHelper implements AMap.OnMarkerDragListener {
         void onDrawModeChanged(boolean isDrawing, DrawMode mode);
         void onDrawCancelled();
         void onDrawFinished();
+        void onCableSegmentCreated(CableSegment segment);
     }
 
     private final AMap aMap;
     private final androidx.fragment.app.Fragment fragment;
-    private final CableSegmentManager cableSegmentManager;
     private final OnCableDrawListener listener;
 
     private boolean isDrawCableMode = false;
@@ -66,11 +65,9 @@ public class CableDrawHelper implements AMap.OnMarkerDragListener {
 
     public CableDrawHelper(AMap aMap, 
                            androidx.fragment.app.Fragment fragment,
-                           CableSegmentManager cableSegmentManager,
                            OnCableDrawListener listener) {
         this.aMap = aMap;
         this.fragment = fragment;
-        this.cableSegmentManager = cableSegmentManager;
         this.listener = listener;
     }
 
@@ -317,7 +314,10 @@ public class CableDrawHelper implements AMap.OnMarkerDragListener {
             points.add(new CableSegment.Point(endPoint.latitude, endPoint.longitude));
             segment.setPoints(points);
 
-            cableSegmentManager.createCableSegment(segment);
+            // Notify listener to create cable segment through ViewModel
+            if (listener != null) {
+                listener.onCableSegmentCreated(segment);
+            }
             cancelDrawCableMode();
             dialog.dismiss();
             

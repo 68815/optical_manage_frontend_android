@@ -15,6 +15,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 
 import com.amap.api.maps.AMap;
 import com.amap.api.maps.CameraUpdateFactory;
@@ -23,7 +24,6 @@ import com.amap.api.maps.model.LatLng;
 import com.amap.api.maps.model.Marker;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import cn.edu.ncepu.optical_manage.R;
@@ -31,6 +31,7 @@ import cn.edu.ncepu.optical_manage.api.ApiClient;
 import cn.edu.ncepu.optical_manage.api.ApiService;
 import cn.edu.ncepu.optical_manage.manager.CableSegmentManager;
 import cn.edu.ncepu.optical_manage.manager.ResourcePointManager;
+import cn.edu.ncepu.optical_manage.model.CableSegment;
 import cn.edu.ncepu.optical_manage.model.ResourcePoint;
 import cn.edu.ncepu.optical_manage.ui.adapters.ResourcePointInfoWindowAdapter;
 import cn.edu.ncepu.optical_manage.ui.dialogs.AddResourcePointDialog;
@@ -64,25 +65,20 @@ public class MapFragment extends Fragment implements
     private FloatingActionButton fabDrawCable;
     private FloatingActionButton fabRefresh;
 
-    private ApiService apiService;
+    private MapViewModel viewModel;
     private ResourcePointManager resourcePointManager;
     private CableSegmentManager cableSegmentManager;
     private LocationHelper locationHelper;
     private CableDrawHelper cableDrawHelper;
 
-    private AddMode currentAddMode = AddMode.NONE;
-    private List<ResourcePoint> resourcePoints = new ArrayList<>();
-
-    private enum AddMode {
-        NONE,
-        RESOURCE_POINT,
-        CABLE
-    }
-
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        apiService = ApiClient.getApiService();
+        ApiService apiService = ApiClient.getApiService();
+        
+        // Initialize ViewModel with Factory
+        MapViewModelFactory factory = new MapViewModelFactory(apiService);
+        viewModel = new ViewModelProvider(this, factory).get(MapViewModel.class);
     }
 
     @Nullable
@@ -97,6 +93,7 @@ public class MapFragment extends Fragment implements
         initManagers();
         initCableDrawHelper();
         initListeners();
+        observeViewModel();
         checkPermissions();
 
         return view;
@@ -132,11 +129,8 @@ public class MapFragment extends Fragment implements
     }
 
     private void initManagers() {
-        resourcePointManager = new ResourcePointManager(apiService, aMap, requireContext());
-        cableSegmentManager = new CableSegmentManager(apiService, aMap, requireContext());
-
-        resourcePointManager.setOnResourcePointChangedListener(() -> loadData());
-        cableSegmentManager.setOnCableSegmentChangedListener(() -> {});
+        resourcePointManager = new ResourcePointManager(aMap);
+        cableSegmentManager = new CableSegmentManager(aMap);
     }
 
     private void initLocationHelper() {
@@ -144,7 +138,7 @@ public class MapFragment extends Fragment implements
     }
 
     private void initCableDrawHelper() {
-        cableDrawHelper = new CableDrawHelper(aMap, this, cableSegmentManager, 
+        cableDrawHelper = new CableDrawHelper(aMap, this, 
                 new CableDrawHelper.OnCableDrawListener() {
             @Override
             public void onDrawModeChanged(boolean isDrawing, CableDrawHelper.DrawMode mode) {
@@ -154,41 +148,135 @@ public class MapFragment extends Fragment implements
             @Override
             public void onDrawCancelled() {
                 hideDrawPanel();
-                currentAddMode = AddMode.NONE;
+                viewModel.setCurrentAddMode(MapViewModel.AddMode.NONE);
             }
 
             @Override
             public void onDrawFinished() {
                 hideDrawPanel();
-                loadData();
-                currentAddMode = AddMode.NONE;
+                viewModel.setCurrentAddMode(MapViewModel.AddMode.NONE);
+            }
+
+            @Override
+            public void onCableSegmentCreated(CableSegment segment) {
+                viewModel.createCableSegment(segment);
             }
         });
 
         aMap.setOnMarkerDragListener(cableDrawHelper);
     }
 
+    private void observeViewModel() {
+        // Observe ResourcePoints
+        viewModel.getResourcePoints().observe(getViewLifecycleOwner(), points -> {
+            if (points != null) {
+                resourcePointManager.updateMarkers(points);
+                cableDrawHelper.setResourcePoints(points);
+            }
+        });
+
+        // Observe CableSegments
+        viewModel.getCableSegments().observe(getViewLifecycleOwner(), segments -> {
+            if (segments != null) {
+                cableSegmentManager.updatePolylines(segments);
+            }
+        });
+
+        // Observe newly created ResourcePoint
+        viewModel.getCreatedResourcePoint().observe(getViewLifecycleOwner(), point -> {
+            if (point != null) {
+                resourcePointManager.addMarker(point);
+                showToast("添加成功：" + point.getName());
+                viewModel.loadResourcePoints(); // Refresh list
+            }
+        });
+
+        // Observe updated ResourcePoint
+        viewModel.getUpdatedResourcePoint().observe(getViewLifecycleOwner(), point -> {
+            if (point != null) {
+                resourcePointManager.updateMarker(point);
+                showToast("更新成功");
+                viewModel.loadResourcePoints(); // Refresh list
+            }
+        });
+
+        // Observe deleted ResourcePoint
+        viewModel.getDeletedResourcePointId().observe(getViewLifecycleOwner(), id -> {
+            if (id != null) {
+                resourcePointManager.removeMarker(id);
+                showToast("删除成功");
+                viewModel.loadResourcePoints(); // Refresh list
+            }
+        });
+
+        // Observe newly created CableSegment
+        viewModel.getCreatedCableSegment().observe(getViewLifecycleOwner(), segment -> {
+            if (segment != null) {
+                cableSegmentManager.addPolyline(segment);
+                showToast("光缆段添加成功：" + segment.getName());
+                viewModel.loadCableSegments(); // Refresh list
+            }
+        });
+
+        // Observe updated CableSegment
+        viewModel.getUpdatedCableSegment().observe(getViewLifecycleOwner(), segment -> {
+            if (segment != null) {
+                cableSegmentManager.updatePolyline(segment);
+                showToast("更新成功");
+                viewModel.loadCableSegments(); // Refresh list
+            }
+        });
+
+        // Observe deleted CableSegment
+        viewModel.getDeletedCableSegmentId().observe(getViewLifecycleOwner(), id -> {
+            if (id != null) {
+                cableSegmentManager.removePolyline(id);
+                showToast("删除成功");
+                viewModel.loadCableSegments(); // Refresh list
+            }
+        });
+
+        // Observe errors
+        viewModel.getResourcePointError().observe(getViewLifecycleOwner(), error -> {
+            if (error != null) {
+                showToast(error);
+                viewModel.clearResourcePointError();
+            }
+        });
+
+        viewModel.getCableSegmentError().observe(getViewLifecycleOwner(), error -> {
+            if (error != null) {
+                showToast(error);
+                viewModel.clearCableSegmentError();
+            }
+        });
+
+        // Observe AddMode
+        viewModel.getCurrentAddMode().observe(getViewLifecycleOwner(), mode -> {
+            // Mode changes are handled in onMapClick
+        });
+    }
+
     private void initListeners() {
         searchButton.setOnClickListener(v -> performSearch());
 
         fabAddResourcePoint.setOnClickListener(v -> {
-            currentAddMode = AddMode.RESOURCE_POINT;
+            viewModel.setCurrentAddMode(MapViewModel.AddMode.RESOURCE_POINT);
             showToast("点击地图添加资源点");
         });
 
         fabDrawCable.setOnClickListener(v -> {
-            currentAddMode = AddMode.CABLE;
-            cableDrawHelper.setResourcePoints(resourcePoints);
+            viewModel.setCurrentAddMode(MapViewModel.AddMode.CABLE);
             cableDrawHelper.startDrawCableMode();
             showDrawPanel();
         });
 
-        fabRefresh.setOnClickListener(v -> loadData());
+        fabRefresh.setOnClickListener(v -> viewModel.loadAllData());
 
         btnCancelDraw.setOnClickListener(v -> {
             cableDrawHelper.cancelDrawCableMode();
             hideDrawPanel();
-            currentAddMode = AddMode.NONE;
+            viewModel.setCurrentAddMode(MapViewModel.AddMode.NONE);
         });
 
         btnFinishDraw.setOnClickListener(v -> cableDrawHelper.finishDrawCable());
@@ -232,7 +320,7 @@ public class MapFragment extends Fragment implements
 
         if (missingPermissions.isEmpty()) {
             initLocation();
-            loadData();
+            viewModel.loadAllData();
         } else {
             requestPermissions(missingPermissions.toArray(new String[0]), PERMISSION_REQUEST_CODE);
         }
@@ -245,7 +333,7 @@ public class MapFragment extends Fragment implements
         if (requestCode == PERMISSION_REQUEST_CODE) {
             if (PermissionUtils.hasAllPermissions(requireContext(), REQUIRED_PERMISSIONS)) {
                 initLocation();
-                loadData();
+                viewModel.loadAllData();
             } else {
                 showToast("需要定位权限才能使用完整功能");
             }
@@ -257,28 +345,6 @@ public class MapFragment extends Fragment implements
         locationHelper.initLocation();
     }
 
-    private void loadData() {
-        resourcePointManager.loadAllResourcePoints();
-        cableSegmentManager.loadAllCableSegments();
-        
-        apiService.getAllResourcePoints().enqueue(
-                new retrofit2.Callback<cn.edu.ncepu.optical_manage.model.ApiResponse<List<ResourcePoint>>>() {
-            @Override
-            public void onResponse(retrofit2.Call<cn.edu.ncepu.optical_manage.model.ApiResponse<List<ResourcePoint>>> call,
-                                   retrofit2.Response<cn.edu.ncepu.optical_manage.model.ApiResponse<List<ResourcePoint>>> response) {
-                if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
-                    resourcePoints = response.body().getData();
-                    cableDrawHelper.setResourcePoints(resourcePoints);
-                }
-            }
-
-            @Override
-            public void onFailure(retrofit2.Call<cn.edu.ncepu.optical_manage.model.ApiResponse<List<ResourcePoint>>> call,
-                                  Throwable t) {
-            }
-        });
-    }
-
     private void performSearch() {
         String keyword = searchEditText.getText().toString().trim();
         if (TextUtils.isEmpty(keyword)) {
@@ -286,7 +352,7 @@ public class MapFragment extends Fragment implements
             return;
         }
 
-        apiService.searchResourcePoints(keyword).enqueue(
+        ApiClient.getApiService().searchResourcePoints(keyword).enqueue(
                 new retrofit2.Callback<cn.edu.ncepu.optical_manage.model.ApiResponse<List<ResourcePoint>>>() {
             @Override
             public void onResponse(retrofit2.Call<cn.edu.ncepu.optical_manage.model.ApiResponse<List<ResourcePoint>>> call,
@@ -314,7 +380,10 @@ public class MapFragment extends Fragment implements
 
     @Override
     public void onMapClick(LatLng latLng) {
-        switch (currentAddMode) {
+        MapViewModel.AddMode currentMode = viewModel.getCurrentAddMode().getValue();
+        if (currentMode == null) currentMode = MapViewModel.AddMode.NONE;
+        
+        switch (currentMode) {
             case RESOURCE_POINT:
                 showAddResourcePointDialog(latLng);
                 break;
@@ -332,10 +401,10 @@ public class MapFragment extends Fragment implements
         AddResourcePointDialog dialog = new AddResourcePointDialog(
                 this,
                 point -> {
-                    resourcePointManager.createResourcePoint(point);
-                    currentAddMode = AddMode.NONE;
+                    viewModel.createResourcePoint(point);
+                    viewModel.setCurrentAddMode(MapViewModel.AddMode.NONE);
                 },
-                () -> currentAddMode = AddMode.NONE
+                () -> viewModel.setCurrentAddMode(MapViewModel.AddMode.NONE)
         );
         dialog.show(latLng.latitude, latLng.longitude, ResourcePoint.ResourceType.POLE, "添加资源点");
     }
@@ -381,7 +450,7 @@ public class MapFragment extends Fragment implements
     private void showEditResourcePointDialog(ResourcePoint point) {
         EditResourcePointDialog dialog = new EditResourcePointDialog(
                 this,
-                updatedPoint -> resourcePointManager.updateResourcePoint(updatedPoint)
+                updatedPoint -> viewModel.updateResourcePoint(updatedPoint)
         );
         dialog.show(point);
     }
@@ -390,7 +459,7 @@ public class MapFragment extends Fragment implements
         new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
                 .setTitle("确认删除")
                 .setMessage("确定要删除资源点 \"" + point.getName() + "\" 吗？")
-                .setPositiveButton("删除", (dialog, which) -> resourcePointManager.deleteResourcePoint(point))
+                .setPositiveButton("删除", (dialog, which) -> viewModel.deleteResourcePoint(point))
                 .setNegativeButton("取消", null)
                 .show();
     }
