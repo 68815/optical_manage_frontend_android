@@ -112,11 +112,14 @@ public class MapFragment extends Fragment implements
         fabDrawCable = view.findViewById(R.id.fabDrawCable);
         fabRefresh = view.findViewById(R.id.fabRefresh);
     }
+    
+    private void initLocationHelper() {
+        locationHelper = new LocationHelper(requireContext());
+    }
 
     private void initMap(Bundle savedInstanceState) {
         mapView.onCreate(savedInstanceState);
-        
-        if (aMap == null) {
+        if (null == aMap) {
             aMap = mapView.getMap();
             aMap.setLocationSource(locationHelper);
             aMap.getUiSettings().setMyLocationButtonEnabled(true);
@@ -133,9 +136,6 @@ public class MapFragment extends Fragment implements
         cableSegmentManager = new CableSegmentManager(aMap);
     }
 
-    private void initLocationHelper() {
-        locationHelper = new LocationHelper(requireContext());
-    }
 
     private void initCableDrawHelper() {
         cableDrawHelper = new CableDrawHelper(aMap, this, 
@@ -164,6 +164,31 @@ public class MapFragment extends Fragment implements
         });
 
         aMap.setOnMarkerDragListener(cableDrawHelper);
+    }
+
+    private void initListeners() {
+        searchButton.setOnClickListener(v -> performSearch());
+
+        fabAddResourcePoint.setOnClickListener(v -> {
+            viewModel.setCurrentAddMode(MapViewModel.AddMode.RESOURCE_POINT);
+            showToast("点击地图添加资源点");
+        });
+
+        fabDrawCable.setOnClickListener(v -> {
+            viewModel.setCurrentAddMode(MapViewModel.AddMode.CABLE);
+            cableDrawHelper.startDrawCableMode();
+            showDrawPanel();
+        });
+
+        fabRefresh.setOnClickListener(v -> viewModel.loadAllData());
+
+        btnCancelDraw.setOnClickListener(v -> {
+            cableDrawHelper.cancelDrawCableMode();
+            hideDrawPanel();
+            viewModel.setCurrentAddMode(MapViewModel.AddMode.NONE);
+        });
+
+        btnFinishDraw.setOnClickListener(v -> cableDrawHelper.finishDrawCable());
     }
 
     private void observeViewModel() {
@@ -257,29 +282,29 @@ public class MapFragment extends Fragment implements
         });
     }
 
-    private void initListeners() {
-        searchButton.setOnClickListener(v -> performSearch());
+    private void checkPermissions() {
+        List<String> missingPermissions = PermissionUtils.getMissingPermissions(requireContext(), REQUIRED_PERMISSIONS);
 
-        fabAddResourcePoint.setOnClickListener(v -> {
-            viewModel.setCurrentAddMode(MapViewModel.AddMode.RESOURCE_POINT);
-            showToast("点击地图添加资源点");
-        });
+        if (missingPermissions.isEmpty()) {
+            initLocation();
+            viewModel.loadAllData();
+        } else {
+            requestPermissions(missingPermissions.toArray(new String[0]), PERMISSION_REQUEST_CODE);
+        }
+    }
 
-        fabDrawCable.setOnClickListener(v -> {
-            viewModel.setCurrentAddMode(MapViewModel.AddMode.CABLE);
-            cableDrawHelper.startDrawCableMode();
-            showDrawPanel();
-        });
-
-        fabRefresh.setOnClickListener(v -> viewModel.loadAllData());
-
-        btnCancelDraw.setOnClickListener(v -> {
-            cableDrawHelper.cancelDrawCableMode();
-            hideDrawPanel();
-            viewModel.setCurrentAddMode(MapViewModel.AddMode.NONE);
-        });
-
-        btnFinishDraw.setOnClickListener(v -> cableDrawHelper.finishDrawCable());
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, 
+                                           @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == PERMISSION_REQUEST_CODE) {
+            if (PermissionUtils.hasAllPermissions(requireContext(), REQUIRED_PERMISSIONS)) {
+                initLocation();
+                viewModel.loadAllData();
+            } else {
+                showToast("需要定位权限才能使用完整功能");
+            }
+        }
     }
 
     private void updateDrawPanel(boolean isDrawing, CableDrawHelper.DrawMode mode) {
@@ -313,31 +338,6 @@ public class MapFragment extends Fragment implements
 
     private void hideDrawPanel() {
         drawCablePanel.setVisibility(View.GONE);
-    }
-
-    private void checkPermissions() {
-        List<String> missingPermissions = PermissionUtils.getMissingPermissions(requireContext(), REQUIRED_PERMISSIONS);
-
-        if (missingPermissions.isEmpty()) {
-            initLocation();
-            viewModel.loadAllData();
-        } else {
-            requestPermissions(missingPermissions.toArray(new String[0]), PERMISSION_REQUEST_CODE);
-        }
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, 
-                                           @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == PERMISSION_REQUEST_CODE) {
-            if (PermissionUtils.hasAllPermissions(requireContext(), REQUIRED_PERMISSIONS)) {
-                initLocation();
-                viewModel.loadAllData();
-            } else {
-                showToast("需要定位权限才能使用完整功能");
-            }
-        }
     }
 
     private void initLocation() {
