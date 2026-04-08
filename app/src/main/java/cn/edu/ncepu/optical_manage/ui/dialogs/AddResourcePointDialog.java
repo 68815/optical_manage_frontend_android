@@ -37,7 +37,7 @@ public class AddResourcePointDialog {
     private Button btnSave;
 
     private ResourcePoint.ResourceType selectedType = ResourcePoint.ResourceType.POLE;
-    private String selectedStatus = ResourcePoint.STATUS_NORMAL;
+    private int selectedStatus = ResourcePoint.STATUS_NORMAL;
 
     private double latitude;
     private double longitude;
@@ -109,13 +109,21 @@ public class AddResourcePointDialog {
     }
 
     private void setupStatusSpinner() {
-        String[] statusValues = {ResourcePoint.STATUS_NORMAL, ResourcePoint.STATUS_FAULT, ResourcePoint.STATUS_MAINTENANCE};
+        int[] statusValues = {ResourcePoint.STATUS_NORMAL, ResourcePoint.STATUS_FAULT, ResourcePoint.STATUS_MAINTENANCE};
         String[] statusDisplayNames = {"正常", "故障", "维护中"};
 
         ArrayAdapter<String> adapter = new ArrayAdapter<>(fragment.requireContext(),
                 android.R.layout.simple_spinner_item, statusDisplayNames);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerStatus.setAdapter(adapter);
+
+        // Set default selection to match initial selectedStatus value
+        for (int i = 0; i < statusValues.length; i++) {
+            if (statusValues[i] == selectedStatus) {
+                spinnerStatus.setSelection(i);
+                break;
+            }
+        }
 
         spinnerStatus.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
@@ -147,7 +155,7 @@ public class AddResourcePointDialog {
                 return;
             }
 
-            ResourcePoint point = new ResourcePoint(name, selectedType, latitude, longitude);
+            ResourcePoint point = new ResourcePoint(name, selectedType.getValue(), latitude, longitude);
             point.setStatus(selectedStatus);
 
             if (saveListener != null) {

@@ -22,4 +22,19 @@
         android:orderInCategory="3"
         android:title="清除地图标记"
         app:showAsAction="never" />
+    <item
+        android:id="@+id/action_map_type_normal"
+        android:orderInCategory="4"
+        android:title="标准地图"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_map_type_satellite"
+        android:orderInCategory="5"
+        android:title="卫星地图"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_map_type_night"
+        android:orderInCategory="6"
+        android:title="夜间模式"
+        app:showAsAction="never" />
 </menu>

@@ -1,16 +1,26 @@
 package cn.edu.ncepu.optical_manage.model;
 
-import com.google.gson.annotations.SerializedName;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 
 public class ApiResponse<T> {
-    @SerializedName("code")
+    @JsonProperty("code")
     private int code;
 
-    @SerializedName("message")
+    @JsonProperty("message")
     private String message;
 
-    @SerializedName("data")
+    @JsonProperty("data")
     private T data;
+
+    @JsonProperty("ok")
+    private boolean ok;
+
+    @JsonProperty("resources")
+    private List<T> resources;
+
+    @JsonProperty("id")
+    private Long id;
 
     public ApiResponse() {
     }
@@ -45,7 +55,44 @@ public class ApiResponse<T> {
         this.data = data;
     }
 
+    public boolean isOk() {
+        return ok;
+    }
+
+    public void setOk(boolean ok) {
+        this.ok = ok;
+    }
+
+    public List<T> getResources() {
+        return resources;
+    }
+
+    public void setResources(List<T> resources) {
+        this.resources = resources;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
     public boolean isSuccess() {
-        return code == 200;
+        return code == 200 || ok;
+    }
+
+    public T getEffectiveData() {
+        if (data != null) {
+            return data;
+        }
+        if (resources != null && !resources.isEmpty()) {
+            if (resources.size() == 1) {
+                return resources.get(0);
+            }
+            return (T) resources;
+        }
+        return null;
     }
 }

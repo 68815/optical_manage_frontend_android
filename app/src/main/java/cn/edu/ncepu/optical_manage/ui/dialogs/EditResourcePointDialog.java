@@ -33,8 +33,8 @@ public class EditResourcePointDialog {
     private TextInputEditText etAddress;
     private ResourcePoint currentPoint;
 
-    private ResourcePoint.ResourceType selectedType;
-    private String selectedStatus;
+    private String selectedType;
+    private int selectedStatus;
 
     public EditResourcePointDialog(androidx.fragment.app.Fragment fragment,
                                     OnResourcePointUpdateListener updateListener) {
@@ -46,10 +46,10 @@ public class EditResourcePointDialog {
         this.currentPoint = point;
         this.selectedType = point.getType();
         this.selectedStatus = point.getStatus() != null ? point.getStatus() : ResourcePoint.STATUS_NORMAL;
-        
+
         View dialogView = LayoutInflater.from(fragment.requireContext())
                 .inflate(R.layout.dialog_resource_point, null);
-        
+
         initViews(dialogView);
         populateData(point);
         setupButtons();
@@ -65,7 +65,7 @@ public class EditResourcePointDialog {
         spinnerType = dialogView.findViewById(R.id.spinnerType);
         spinnerStatus = dialogView.findViewById(R.id.spinnerStatus);
         etAddress = dialogView.findViewById(R.id.etAddress);
-        
+
         TextView tvDialogTitle = dialogView.findViewById(R.id.tvDialogTitle);
         tvDialogTitle.setText("编辑资源点");
     }
@@ -78,7 +78,7 @@ public class EditResourcePointDialog {
         setupStatusSpinner(point.getStatus());
     }
 
-    private void setupTypeSpinner(ResourcePoint currentType) {
+    private void setupTypeSpinner(ResourcePoint currentPoint) {
         ResourcePoint.ResourceType[] types = ResourcePoint.ResourceType.values();
         String[] displayNames = new String[types.length];
         for (int i = 0; i < types.length; i++) {
@@ -90,9 +90,10 @@ public class EditResourcePointDialog {
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerType.setAdapter(adapter);
 
-        if (currentType != null) {
+        String currentTypeValue = currentPoint.getType();
+        if (currentTypeValue != null) {
             for (int i = 0; i < types.length; i++) {
-                if (types[i] == currentPoint.getType()) {
+                if (types[i].getValue().equals(currentTypeValue)) {
                     spinnerType.setSelection(i);
                     break;
                 }
@@ -102,7 +103,7 @@ public class EditResourcePointDialog {
         spinnerType.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                selectedType = types[position];
+                selectedType = types[position].getValue();
             }
 
             @Override
@@ -111,8 +112,8 @@ public class EditResourcePointDialog {
         });
     }
 
-    private void setupStatusSpinner(String currentStatus) {
-        String[] statusValues = {ResourcePoint.STATUS_NORMAL, ResourcePoint.STATUS_FAULT, ResourcePoint.STATUS_MAINTENANCE};
+    private void setupStatusSpinner(int currentStatus) {
+        int[] statusValues = {ResourcePoint.STATUS_NORMAL, ResourcePoint.STATUS_FAULT, ResourcePoint.STATUS_MAINTENANCE};
         String[] statusDisplayNames = {"正常", "故障", "维护中"};
 
         ArrayAdapter<String> adapter = new ArrayAdapter<>(fragment.requireContext(),
@@ -120,12 +121,10 @@ public class EditResourcePointDialog {
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerStatus.setAdapter(adapter);
 
-        if (currentStatus != null) {
-            for (int i = 0; i < statusValues.length; i++) {
-                if (statusValues[i].equals(currentStatus)) {
-                    spinnerStatus.setSelection(i);
-                    break;
-                }
+        for (int i = 0; i < statusValues.length; i++) {
+            if (statusValues[i] == currentStatus) {
+                spinnerStatus.setSelection(i);
+                break;
             }
         }
 
@@ -170,7 +169,7 @@ public class EditResourcePointDialog {
 
     private void showToast(String message) {
         if (fragment.getContext() != null) {
-            android.widget.Toast.makeText(fragment.getContext(), message, 
+            android.widget.Toast.makeText(fragment.getContext(), message,
                     android.widget.Toast.LENGTH_SHORT).show();
         }
     }

@@ -1,60 +1,79 @@
 package cn.edu.ncepu.optical_manage.model;
 
-import com.google.gson.annotations.SerializedName;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import java.math.BigDecimal;
 import java.util.List;
 
 public class CableSegment {
-    @SerializedName("id")
+    @JsonProperty("segment_id")
     private Long id;
 
-    @SerializedName("name")
+    @JsonProperty("id")
+    private Long segmentId;
+
+    @JsonProperty("name")
     private String name;
 
-    @SerializedName("startPointId")
+    @JsonProperty("routing_id")
+    private Long routingId;
+
+    @JsonProperty("cable_level")
+    private String cableLevel;
+
+    @JsonProperty("length")
+    private BigDecimal length;
+
+    @JsonProperty("fiber_count")
+    private Integer fiberCount;
+
+    @JsonProperty("tube_count")
+    private Integer tubeCount;
+
+    @JsonProperty("fibers_per_tube")
+    private Integer fibersPerTube;
+
+    @JsonProperty("laying_style")
+    private String layingStyle;
+
+    @JsonProperty("start_point_id")
     private Long startPointId;
 
-    @SerializedName("endPointId")
+    @JsonProperty("end_point_id")
     private Long endPointId;
 
-    @SerializedName("startPointName")
-    private String startPointName;
+    @JsonProperty("geom")
+    private String geom;
 
-    @SerializedName("endPointName")
-    private String endPointName;
+    @JsonProperty("props")
+    private String props;
 
-    @SerializedName("length")
-    private double length;
-
-    @SerializedName("fiberCount")
-    private int fiberCount;
-
-    @SerializedName("points")
+    @JsonProperty("points")
     private List<Point> points;
 
-    @SerializedName("description")
-    private String description;
-
-    @SerializedName("createTime")
+    @JsonProperty("created_at")
     private String createTime;
 
-    @SerializedName("updateTime")
+    @JsonProperty("updated_at")
     private String updateTime;
 
     public CableSegment() {
     }
 
-    public CableSegment(String name, Long startPointId, Long endPointId) {
-        this.name = name;
-        this.startPointId = startPointId;
-        this.endPointId = endPointId;
-    }
-
     public Long getId() {
-        return id;
+        if (id != null) return id;
+        return segmentId;
     }
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public Long getSegmentId() {
+        return segmentId;
+    }
+
+    public void setSegmentId(Long segmentId) {
+        this.segmentId = segmentId;
     }
 
     public String getName() {
@@ -63,6 +82,62 @@ public class CableSegment {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public Long getRoutingId() {
+        return routingId;
+    }
+
+    public void setRoutingId(Long routingId) {
+        this.routingId = routingId;
+    }
+
+    public String getCableLevel() {
+        return cableLevel;
+    }
+
+    public void setCableLevel(String cableLevel) {
+        this.cableLevel = cableLevel;
+    }
+
+    public BigDecimal getLength() {
+        return length;
+    }
+
+    public void setLength(BigDecimal length) {
+        this.length = length;
+    }
+
+    public Integer getFiberCount() {
+        return fiberCount;
+    }
+
+    public void setFiberCount(Integer fiberCount) {
+        this.fiberCount = fiberCount;
+    }
+
+    public Integer getTubeCount() {
+        return tubeCount;
+    }
+
+    public void setTubeCount(Integer tubeCount) {
+        this.tubeCount = tubeCount;
+    }
+
+    public Integer getFibersPerTube() {
+        return fibersPerTube;
+    }
+
+    public void setFibersPerTube(Integer fibersPerTube) {
+        this.fibersPerTube = fibersPerTube;
+    }
+
+    public String getLayingStyle() {
+        return layingStyle;
+    }
+
+    public void setLayingStyle(String layingStyle) {
+        this.layingStyle = layingStyle;
     }
 
     public Long getStartPointId() {
@@ -81,36 +156,20 @@ public class CableSegment {
         this.endPointId = endPointId;
     }
 
-    public String getStartPointName() {
-        return startPointName;
+    public String getGeom() {
+        return geom;
     }
 
-    public void setStartPointName(String startPointName) {
-        this.startPointName = startPointName;
+    public void setGeom(String geom) {
+        this.geom = geom;
     }
 
-    public String getEndPointName() {
-        return endPointName;
+    public String getProps() {
+        return props;
     }
 
-    public void setEndPointName(String endPointName) {
-        this.endPointName = endPointName;
-    }
-
-    public double getLength() {
-        return length;
-    }
-
-    public void setLength(double length) {
-        this.length = length;
-    }
-
-    public int getFiberCount() {
-        return fiberCount;
-    }
-
-    public void setFiberCount(int fiberCount) {
-        this.fiberCount = fiberCount;
+    public void setProps(String props) {
+        this.props = props;
     }
 
     public List<Point> getPoints() {
@@ -119,14 +178,6 @@ public class CableSegment {
 
     public void setPoints(List<Point> points) {
         this.points = points;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
     }
 
     public String getCreateTime() {
@@ -146,18 +197,55 @@ public class CableSegment {
     }
 
     public static class Point {
-        @SerializedName("latitude")
+        @JsonProperty("id")
+        private Long id;
+
+        @JsonProperty("lat")
+        private double lat;
+
+        @JsonProperty("lng")
+        private double lng;
+
+        @JsonProperty("latitude")
         private double latitude;
 
-        @SerializedName("longitude")
+        @JsonProperty("longitude")
         private double longitude;
 
         public Point() {
         }
 
-        public Point(double latitude, double longitude) {
-            this.latitude = latitude;
-            this.longitude = longitude;
+        public Point(double lat, double lng) {
+            this.lat = lat;
+            this.lng = lng;
+            this.latitude = lat;
+            this.longitude = lng;
+        }
+
+        public Long getId() {
+            return id;
+        }
+
+        public void setId(Long id) {
+            this.id = id;
+        }
+
+        public double getLat() {
+            return lat;
+        }
+
+        public void setLat(double lat) {
+            this.lat = lat;
+            this.latitude = lat;
+        }
+
+        public double getLng() {
+            return lng;
+        }
+
+        public void setLng(double lng) {
+            this.lng = lng;
+            this.longitude = lng;
         }
 
         public double getLatitude() {
@@ -166,6 +254,7 @@ public class CableSegment {
 
         public void setLatitude(double latitude) {
             this.latitude = latitude;
+            this.lat = latitude;
         }
 
         public double getLongitude() {
@@ -174,6 +263,7 @@ public class CableSegment {
 
         public void setLongitude(double longitude) {
             this.longitude = longitude;
+            this.lng = longitude;
         }
     }
 }

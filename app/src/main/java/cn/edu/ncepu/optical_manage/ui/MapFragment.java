@@ -4,6 +4,9 @@ import android.Manifest;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -74,6 +77,7 @@ public class MapFragment extends Fragment implements
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setHasOptionsMenu(true);
         ApiService apiService = ApiClient.getApiService();
         
         // Initialize ViewModel with Factory
@@ -352,15 +356,35 @@ public class MapFragment extends Fragment implements
             return;
         }
 
-        ApiClient.getApiService().searchResourcePoints(keyword).enqueue(
-                new retrofit2.Callback<cn.edu.ncepu.optical_manage.model.ApiResponse<List<ResourcePoint>>>() {
+        cn.edu.ncepu.optical_manage.model.request.MapQueryRequest request = new cn.edu.ncepu.optical_manage.model.request.MapQueryRequest();
+        request.setFilter("name=" + keyword);
+        request.setLimit(10);
+
+        ApiClient.getApiService().queryResources(request).enqueue(
+                new retrofit2.Callback<cn.edu.ncepu.optical_manage.model.MapResponse>() {
             @Override
-            public void onResponse(retrofit2.Call<cn.edu.ncepu.optical_manage.model.ApiResponse<List<ResourcePoint>>> call,
-                                   retrofit2.Response<cn.edu.ncepu.optical_manage.model.ApiResponse<List<ResourcePoint>>> response) {
+            public void onResponse(retrofit2.Call<cn.edu.ncepu.optical_manage.model.MapResponse> call,
+                                   retrofit2.Response<cn.edu.ncepu.optical_manage.model.MapResponse> response) {
                 if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
-                    List<ResourcePoint> results = response.body().getData();
+                    java.util.List<cn.edu.ncepu.optical_manage.model.ResourcePoint> results = null;
+                    try {
+                        if (response.body().getResources() != null) {
+                            results = new java.util.ArrayList<>();
+                            for (cn.edu.ncepu.optical_manage.model.MapResponse.ResourceInfo info : response.body().getResources()) {
+                                cn.edu.ncepu.optical_manage.model.ResourcePoint point = new cn.edu.ncepu.optical_manage.model.ResourcePoint();
+                                point.setId(info.getId());
+                                point.setType(info.getType());
+                                point.setName(info.getName());
+                                point.setLatitude(info.getLat());
+                                point.setLongitude(info.getLng());
+                                results.add(point);
+                            }
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
                     if (results != null && !results.isEmpty()) {
-                        ResourcePoint first = results.get(0);
+                        cn.edu.ncepu.optical_manage.model.ResourcePoint first = results.get(0);
                         LatLng latLng = new LatLng(first.getLatitude(), first.getLongitude());
                         aMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 16));
                         showToast("找到 " + results.size() + " 个结果");
@@ -371,7 +395,7 @@ public class MapFragment extends Fragment implements
             }
 
             @Override
-            public void onFailure(retrofit2.Call<cn.edu.ncepu.optical_manage.model.ApiResponse<List<ResourcePoint>>> call,
+            public void onFailure(retrofit2.Call<cn.edu.ncepu.optical_manage.model.MapResponse> call,
                                   Throwable t) {
                 showToast("搜索失败：" + t.getMessage());
             }
@@ -486,6 +510,36 @@ public class MapFragment extends Fragment implements
     public void onSaveInstanceState(@NonNull Bundle outState) {
         super.onSaveInstanceState(outState);
         mapView.onSaveInstanceState(outState);
+    }
+
+    @Override
+    public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
+        inflater.inflate(R.menu.menu_main, menu);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        int id = item.getItemId();
+        if (id == R.id.action_map_type_normal) {
+            if (aMap != null) {
+                aMap.setMapType(AMap.MAP_TYPE_NORMAL);
+                showToast("已切换为标准地图");
+            }
+            return true;
+        } else if (id == R.id.action_map_type_satellite) {
+            if (aMap != null) {
+                aMap.setMapType(AMap.MAP_TYPE_SATELLITE);
+                showToast("已切换为卫星地图");
+            }
+            return true;
+        } else if (id == R.id.action_map_type_night) {
+            if (aMap != null) {
+                aMap.setMapType(AMap.MAP_TYPE_NIGHT);
+                showToast("已切换为夜间模式");
+            }
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
     }
 
     @Override

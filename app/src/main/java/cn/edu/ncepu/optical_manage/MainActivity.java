@@ -12,7 +12,10 @@ import androidx.navigation.ui.NavigationUI;
 
 import com.amap.api.maps.MapsInitializer;
 
+import cn.edu.ncepu.optical_manage.BuildConfig;
 import cn.edu.ncepu.optical_manage.databinding.ActivityMainBinding;
+import cn.edu.ncepu.optical_manage.utils.CoordTransformUtil;
+import timber.log.Timber;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -23,8 +26,14 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        if (BuildConfig.DEBUG) {
+            Timber.plant(new Timber.DebugTree());
+        }
+
         MapsInitializer.updatePrivacyShow(this, true, true);
         MapsInitializer.updatePrivacyAgree(this, true);
+
+        CoordTransformUtil.init(this);
 
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
@@ -38,17 +47,8 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.menu_main, menu);
+        // 菜单由 MapFragment 管理，这里不加载
         return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        int id = item.getItemId();
-        if (id == R.id.action_settings) {
-            return true;
-        }
-        return super.onOptionsItemSelected(item);
     }
 
     @Override
