@@ -39,14 +39,17 @@ public class ResourcePointManager {
 
     public void addMarker(ResourcePoint point) {
         if (point == null) return;
-        
+
         LatLng latLng = new LatLng(point.getLatitude(), point.getLongitude());
         float markerColor = getMarkerColor(point.getType());
+
+        ResourcePoint.ResourceType resourceType = point.getResourceType();
+        String typeDisplayName = resourceType != null ? resourceType.getDisplayName() : "未知";
 
         MarkerOptions markerOptions = new MarkerOptions()
                 .position(latLng)
                 .title(point.getName())
-                .snippet("类型：" + (point.getType() != null ? point.getType().getDisplayName() : "未知"))
+                .snippet("类型：" + typeDisplayName)
                 .icon(BitmapDescriptorFactory.defaultMarker(markerColor));
 
         Marker marker = aMap.addMarker(markerOptions);
@@ -58,7 +61,7 @@ public class ResourcePointManager {
 
     public void updateMarker(ResourcePoint point) {
         if (point == null || point.getId() == null) return;
-        
+
         Marker existingMarker = markerMap.get(point.getId());
         if (existingMarker != null) {
             existingMarker.remove();
@@ -68,14 +71,24 @@ public class ResourcePointManager {
 
     public void removeMarker(Long pointId) {
         if (pointId == null) return;
-        
+
         Marker marker = markerMap.remove(pointId);
         if (marker != null) {
             marker.remove();
         }
     }
 
-    private float getMarkerColor(ResourcePoint.ResourceType type) {
+    private float getMarkerColor(String type) {
+        if (type == null) return BitmapDescriptorFactory.HUE_RED;
+        try {
+            ResourcePoint.ResourceType resourceType = ResourcePoint.ResourceType.fromValue(type);
+            return getMarkerColorByType(resourceType);
+        } catch (Exception e) {
+            return BitmapDescriptorFactory.HUE_RED;
+        }
+    }
+
+    private float getMarkerColorByType(ResourcePoint.ResourceType type) {
         if (type == null) return BitmapDescriptorFactory.HUE_RED;
         switch (type) {
             case POLE:

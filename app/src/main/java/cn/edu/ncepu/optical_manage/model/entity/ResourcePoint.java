@@ -1,34 +1,43 @@
 package cn.edu.ncepu.optical_manage.model;
 
-import com.google.gson.annotations.SerializedName;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class ResourcePoint {
-    @SerializedName("point_id")
+    @JsonProperty("resource_point_id")
     private Long id;
 
-    @SerializedName("name")
+    @JsonProperty("id")
+    private Long resourcePointId;
+
+    @JsonProperty("name")
     private String name;
 
-    @SerializedName("type")
-    private ResourceType type;
+    @JsonProperty("type")
+    private String type;
 
-    @SerializedName("lat")
+    @JsonProperty("address")
+    private String address;
+
+    @JsonProperty("status")
+    private Integer status;
+
+    @JsonProperty("lat")
     private double latitude;
 
-    @SerializedName("lng")
+    @JsonProperty("lng")
     private double longitude;
 
-    @SerializedName("status")
-    private String status;
+    @JsonProperty("geom")
+    private String geom;
 
-    @SerializedName("created_at")
+    @JsonProperty("props")
+    private String props;
+
+    @JsonProperty("created_at")
     private String createTime;
 
-    @SerializedName("updated_at")
+    @JsonProperty("updated_at")
     private String updateTime;
-
-    @SerializedName("address")
-    private String address;
 
     public enum ResourceType {
         POLE("pole", "电杆"),
@@ -66,15 +75,15 @@ public class ResourcePoint {
         }
     }
 
-    public static final String STATUS_NORMAL = "normal";
-    public static final String STATUS_FAULT = "fault";
-    public static final String STATUS_MAINTENANCE = "maintenance";
+    public static final int STATUS_NORMAL = 0;
+    public static final int STATUS_FAULT = 1;
+    public static final int STATUS_MAINTENANCE = 2;
 
     public ResourcePoint() {
         this.status = STATUS_NORMAL;
     }
 
-    public ResourcePoint(String name, ResourceType type, double latitude, double longitude) {
+    public ResourcePoint(String name, String type, double latitude, double longitude) {
         this.name = name;
         this.type = type;
         this.latitude = latitude;
@@ -83,11 +92,20 @@ public class ResourcePoint {
     }
 
     public Long getId() {
-        return id;
+        if (id != null) return id;
+        return resourcePointId;
     }
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public Long getResourcePointId() {
+        return resourcePointId;
+    }
+
+    public void setResourcePointId(Long resourcePointId) {
+        this.resourcePointId = resourcePointId;
     }
 
     public String getName() {
@@ -98,19 +116,19 @@ public class ResourcePoint {
         this.name = name;
     }
 
-    public ResourceType getType() {
+    public String getType() {
         return type;
     }
 
-    public void setType(ResourceType type) {
+    public void setType(String type) {
         this.type = type;
     }
 
-    public String getStatus() {
+    public Integer getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(Integer status) {
         this.status = status;
     }
 
@@ -128,6 +146,22 @@ public class ResourcePoint {
 
     public void setLongitude(double longitude) {
         this.longitude = longitude;
+    }
+
+    public String getGeom() {
+        return geom;
+    }
+
+    public void setGeom(String geom) {
+        this.geom = geom;
+    }
+
+    public String getProps() {
+        return props;
+    }
+
+    public void setProps(String props) {
+        this.props = props;
     }
 
     public String getCreateTime() {
@@ -152,5 +186,9 @@ public class ResourcePoint {
 
     public void setAddress(String address) {
         this.address = address;
+    }
+
+    public ResourceType getResourceType() {
+        return ResourceType.fromValue(type);
     }
 }

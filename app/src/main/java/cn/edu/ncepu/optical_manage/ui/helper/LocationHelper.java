@@ -34,8 +34,7 @@ public class LocationHelper implements LocationSource, AMapLocationListener {
             locationClient.setLocationListener(this);
             AMapLocationClientOption option = new AMapLocationClientOption();
             option.setLocationMode(AMapLocationClientOption.AMapLocationMode.Hight_Accuracy);
-            option.setOnceLocation(false);
-            option.setInterval(2000);
+            option.setOnceLocation(true);
             locationClient.setLocationOption(option);
             locationClient.startLocation();
         } catch (Exception e) {
@@ -80,6 +79,8 @@ public class LocationHelper implements LocationSource, AMapLocationListener {
     @Override
     public void activate(OnLocationChangedListener onLocationChangedListener) {
         locationChangedListener = onLocationChangedListener;
+        // 启动定位，让地图可以获取位置
+        initLocation();
     }
 
     @Override

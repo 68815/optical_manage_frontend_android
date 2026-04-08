@@ -1,28 +1,48 @@
 package cn.edu.ncepu.optical_manage.model;
 
-import com.google.gson.annotations.SerializedName;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class ResourceRequest {
-    @SerializedName("type")
+    @JsonProperty("name")
+    private String name;
+
+    @JsonProperty("type")
     private String type;
 
-    @SerializedName("lat")
+    @JsonProperty("address")
+    private String address;
+
+    @JsonProperty("status")
+    private Integer status;
+
+    @JsonProperty("lat")
     private double lat;
 
-    @SerializedName("lng")
+    @JsonProperty("lng")
     private double lng;
 
-    @SerializedName("props")
+    @JsonProperty("props")
     private String props;
 
     public ResourceRequest() {
     }
 
-    public ResourceRequest(String type, double lat, double lng, String props) {
+    public ResourceRequest(String name, String type, String address, Integer status, double lat, double lng, String props) {
+        this.name = name;
         this.type = type;
+        this.address = address;
+        this.status = status;
         this.lat = lat;
         this.lng = lng;
         this.props = props;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     public String getType() {
@@ -31,6 +51,22 @@ public class ResourceRequest {
 
     public void setType(String type) {
         this.type = type;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
+    public Integer getStatus() {
+        return status;
+    }
+
+    public void setStatus(Integer status) {
+        this.status = status;
     }
 
     public double getLat() {

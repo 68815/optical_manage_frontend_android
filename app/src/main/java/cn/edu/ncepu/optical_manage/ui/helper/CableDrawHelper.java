@@ -304,7 +304,7 @@ public class CableDrawHelper implements AMap.OnMarkerDragListener {
             segment.setStartPointId(resourcePoints.get(startIndex - 1).getId());
             segment.setEndPointId(resourcePoints.get(endIndex - 1).getId());
             segment.setFiberCount(TextUtils.isEmpty(fiberCountStr) ? 0 : Integer.parseInt(fiberCountStr));
-            segment.setDescription(description);
+            segment.setProps(description);
 
             List<CableSegment.Point> points = new ArrayList<>();
             points.add(new CableSegment.Point(startPoint.latitude, startPoint.longitude));
