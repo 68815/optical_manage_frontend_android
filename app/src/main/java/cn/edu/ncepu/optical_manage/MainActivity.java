@@ -7,12 +7,13 @@ import android.view.MenuItem;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
+import androidx.navigation.fragment.NavHostFragment;
 import androidx.navigation.ui.AppBarConfiguration;
 import androidx.navigation.ui.NavigationUI;
 
 import com.amap.api.maps.MapsInitializer;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 
-import cn.edu.ncepu.optical_manage.BuildConfig;
 import cn.edu.ncepu.optical_manage.databinding.ActivityMainBinding;
 import cn.edu.ncepu.optical_manage.utils.CoordTransformUtil;
 import timber.log.Timber;
@@ -40,14 +41,26 @@ public class MainActivity extends AppCompatActivity {
 
         setSupportActionBar(binding.toolbar);
 
-        NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
-        appBarConfiguration = new AppBarConfiguration.Builder(navController.getGraph()).build();
-        NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
+        NavHostFragment navHostFragment = (NavHostFragment) getSupportFragmentManager()
+                .findFragmentById(R.id.nav_host_fragment_content_main);
+
+        if (navHostFragment != null) {
+            NavController navController = navHostFragment.getNavController();
+
+            appBarConfiguration = new AppBarConfiguration.Builder(
+                    R.id.mapFragment,
+                    R.id.profileFragment
+            ).build();
+
+            NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
+
+            BottomNavigationView bottomNavigationView = findViewById(R.id.bottom_navigation);
+            NavigationUI.setupWithNavController(bottomNavigationView, navController);
+        }
     }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        // 菜单由 MapFragment 管理，这里不加载
         return true;
     }
 

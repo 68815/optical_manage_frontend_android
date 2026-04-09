@@ -2,19 +2,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!--允许程序打开网络套接字-->
     <uses-permission android:name="android.permission.INTERNET" />
-    <!--允许程序获取网络状态-->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <!--允许程序访问 WiFi 网络信息-->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-    <!--允许程序访问 CellID 或 WiFi 热点来获取粗略的位置-->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <!--允许程序通过 GPS 获取精确的位置-->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <!--允许获取 wifi 状态改变，用于网络定位，若无 gps 但仍需实现定位小蓝点功能则此权限必选-->
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
-    <!--允许写设备缓存，用于问题排查-->
     <uses-permission android:name="android.permission.WRITE_SETTINGS" />
 
     <application
@@ -26,19 +19,34 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Optical_Manage"
-        android:usesCleartextTraffic="true"> <!--允许http-->
-        <meta-data android:name="com.amap.api.v2.apikey"
-            android:value="553cf4f937709ef313db5c3a5fff4bcd"/>
+        android:usesCleartextTraffic="true">
+
+        <meta-data
+            android:name="com.amap.api.v2.apikey"
+            android:value="553cf4f937709ef313db5c3a5fff4bcd" />
+
         <activity
-            android:name=".MainActivity"
+            android:name=".ui.LoginActivity"
             android:exported="true"
             android:theme="@style/Theme.Optical_Manage">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".ui.RegisterActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Optical_Manage"
+            android:parentActivityName=".ui.LoginActivity" />
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Optical_Manage"
+            android:parentActivityName=".ui.LoginActivity" />
+
     </application>
 
 </manifest>
