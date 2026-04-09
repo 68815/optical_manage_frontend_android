@@ -3,9 +3,11 @@ package cn.edu.ncepu.optical_manage.api;
 import cn.edu.ncepu.optical_manage.model.ApiResponse;
 import cn.edu.ncepu.optical_manage.model.CableSegment;
 import cn.edu.ncepu.optical_manage.model.MapResponse;
+import cn.edu.ncepu.optical_manage.model.User;
 import cn.edu.ncepu.optical_manage.model.request.MapQueryRequest;
 import cn.edu.ncepu.optical_manage.model.ResourcePoint;
 import cn.edu.ncepu.optical_manage.model.ResourceRequest;
+import cn.edu.ncepu.optical_manage.model.request.UserRequest;
 import retrofit2.Call;
 import retrofit2.http.Body;
 import retrofit2.http.DELETE;
@@ -56,4 +58,16 @@ public interface ApiService {
 
     @DELETE("/api/v1/map/routings/{id}")
     Call<Map<String, Object>> deleteRouting(@Path("id") Long id);
+
+    @POST("/api/v1/users")
+    Call<Map<String, Object>> createUser(@Body UserRequest request);
+
+    @GET("/api/v1/users/name/{name}")
+    Call<User> getUserByName(@Path("name") String name);
+
+    @POST("/api/v1/users/validate-password")
+    Call<Map<String, Object>> validatePassword(@Body Map<String, String> request);
+
+    @PUT("/api/v1/users/{id}")
+    Call<Map<String, Object>> updateUser(@Path("id") Long id, @Body UserRequest request);
 }

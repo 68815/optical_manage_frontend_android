@@ -10,4 +10,10 @@
         android:name="cn.edu.ncepu.optical_manage.ui.MapFragment"
         android:label="资源地图"
         tools:layout="@layout/fragment_map" />
+
+    <fragment
+        android:id="@+id/profileFragment"
+        android:name="cn.edu.ncepu.optical_manage.ui.ProfileFragment"
+        android:label="个人主页"
+        tools:layout="@layout/fragment_profile" />
 </navigation>

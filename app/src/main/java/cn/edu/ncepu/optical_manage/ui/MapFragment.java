@@ -75,33 +75,32 @@ public class MapFragment extends Fragment implements
     private CableDrawHelper cableDrawHelper;
     private Marker currentInfoWindowMarker;
 
-    @Override
-    public void onCreate(@Nullable Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setHasOptionsMenu(true);
-        ApiService apiService = ApiClient.getApiService();
-        
-        // Initialize ViewModel with Factory
-        MapViewModelFactory factory = new MapViewModelFactory(apiService);
-        viewModel = new ViewModelProvider(this, factory).get(MapViewModel.class);
-    }
-
     @Nullable
     @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, 
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_map, container, false);
 
         initViews(view);
         initLocationHelper();
         initMap(savedInstanceState);
-        initManagers();
         initCableDrawHelper();
         initListeners();
         observeViewModel();
         checkPermissions();
 
         return view;
+    }
+
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setHasOptionsMenu(true);
+        ApiService apiService = ApiClient.getApiService();
+
+        // Initialize ViewModel with Factory
+        MapViewModelFactory factory = new MapViewModelFactory(apiService);
+        viewModel = new ViewModelProvider(this, factory).get(MapViewModel.class);
     }
 
     private void initViews(View view) {
@@ -133,6 +132,7 @@ public class MapFragment extends Fragment implements
             aMap.setOnMarkerClickListener(this);
             aMap.setOnInfoWindowClickListener(this);
             aMap.setInfoWindowAdapter(new ResourcePointInfoWindowAdapter(LayoutInflater.from(requireContext())));
+            initManagers();
         }
     }
 
@@ -516,6 +516,22 @@ public class MapFragment extends Fragment implements
     public void onResume() {
         super.onResume();
         mapView.onResume();
+        if (aMap != null) {
+            aMap.setLocationSource(locationHelper);
+            aMap.getUiSettings().setMyLocationButtonEnabled(true);
+            aMap.setMyLocationEnabled(true);
+            aMap.setOnMapClickListener(this);
+            aMap.setOnMarkerClickListener(this);
+            aMap.setOnInfoWindowClickListener(this);
+            aMap.setInfoWindowAdapter(new ResourcePointInfoWindowAdapter(LayoutInflater.from(requireContext())));
+            aMap.setOnMarkerDragListener(cableDrawHelper);
+        }
+        if (locationHelper != null) {
+            locationHelper.initLocation();
+        }
+        if (viewModel != null) {
+            viewModel.loadAllData();
+        }
     }
 
     @Override
@@ -563,9 +579,12 @@ public class MapFragment extends Fragment implements
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        mapView.onDestroy();
         if (locationHelper != null) {
             locationHelper.destroyLocation();
         }
+        aMap = null;
+        resourcePointManager = null;
+        cableSegmentManager = null;
+        cableDrawHelper = null;
     }
 }
