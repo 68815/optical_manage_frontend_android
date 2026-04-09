@@ -128,26 +128,28 @@ public class ResourcePointRepository {
         Timber.d("创建资源点: %s", point.getName());
         ResourceRequest request = convertToRequest(point);
 
-        apiService.createResourcePoint(request).enqueue(new Callback<ApiResponse<Long>>() {
+        apiService.createResourcePoint(request).enqueue(new Callback<Long>() {
             @Override
-            public void onResponse(Call<ApiResponse<Long>> call, Response<ApiResponse<Long>> response) {
+            public void onResponse(Call<Long> call, Response<Long> response) {
                 isLoading.postValue(false);
-                if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
-                    Long id = response.body().getData();
+                if (response.isSuccessful() && response.body() != null) {
+                    Long id = response.body();
                     Timber.d("资源点创建成功, id=%d", id);
-                    if (id != null) {
+                    if (id != null && id > 0) {
                         point.setId(id);
                         createdPoint.postValue(point);
+                    } else {
+                        Timber.e("创建资源点失败: 返回ID无效");
+                        errorMessage.postValue("添加失败：返回ID无效");
                     }
                 } else {
-                    String message = response.body() != null ? response.body().getMessage() : "添加失败";
-                    Timber.e("创建资源点失败: %s", message);
-                    errorMessage.postValue(message);
+                    Timber.e("创建资源点失败: HTTP %d", response.code());
+                    errorMessage.postValue("添加失败：" + response.code());
                 }
             }
 
             @Override
-            public void onFailure(Call<ApiResponse<Long>> call, Throwable t) {
+            public void onFailure(Call<Long> call, Throwable t) {
                 isLoading.postValue(false);
                 Timber.e(t, "创建资源点失败");
                 errorMessage.postValue("添加失败：" + t.getMessage());
@@ -160,20 +162,24 @@ public class ResourcePointRepository {
         Timber.d("更新资源点: id=%d, name=%s", point.getId(), point.getName());
         ResourceRequest request = convertToRequest(point);
 
-        apiService.updateResourcePoint(point.getId(), request).enqueue(new Callback<ApiResponse<Map<String, Object>>>() {
+        apiService.updateResourcePoint(point.getId(), request).enqueue(new Callback<Map<String, Object>>() {
             @Override
-            public void onResponse(Call<ApiResponse<Map<String, Object>>> call, Response<ApiResponse<Map<String, Object>>> response) {
+            public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
                 isLoading.postValue(false);
-                if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
-                    updatedPoint.postValue(point);
+                if (response.isSuccessful() && response.body() != null) {
+                    Object ok = response.body().get("ok");
+                    if (Boolean.TRUE.equals(ok)) {
+                        updatedPoint.postValue(point);
+                    } else {
+                        errorMessage.postValue("更新失败");
+                    }
                 } else {
-                    String message = response.body() != null ? response.body().getMessage() : "更新失败";
-                    errorMessage.postValue(message);
+                    errorMessage.postValue("更新失败");
                 }
             }
 
             @Override
-            public void onFailure(Call<ApiResponse<Map<String, Object>>> call, Throwable t) {
+            public void onFailure(Call<Map<String, Object>> call, Throwable t) {
                 isLoading.postValue(false);
                 Timber.e(t, "更新资源点失败");
                 errorMessage.postValue("更新失败：" + t.getMessage());
@@ -184,22 +190,27 @@ public class ResourcePointRepository {
     public void deleteResourcePoint(ResourcePoint point) {
         isLoading.postValue(true);
         Timber.d("删除资源点: id=%d, name=%s", point.getId(), point.getName());
-        apiService.deleteResourcePoint(point.getId()).enqueue(new Callback<ApiResponse<Map<String, Object>>>() {
+        apiService.deleteResourcePoint(point.getId()).enqueue(new Callback<Map<String, Object>>() {
             @Override
-            public void onResponse(Call<ApiResponse<Map<String, Object>>> call, Response<ApiResponse<Map<String, Object>>> response) {
+            public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
                 isLoading.postValue(false);
-                if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
-                    Timber.d("资源点删除成功, id=%d", point.getId());
-                    deletedPointId.postValue(point.getId());
+                if (response.isSuccessful() && response.body() != null) {
+                    Object ok = response.body().get("ok");
+                    if (Boolean.TRUE.equals(ok)) {
+                        Timber.d("资源点删除成功, id=%d", point.getId());
+                        deletedPointId.postValue(point.getId());
+                    } else {
+                        Timber.e("删除资源点失败");
+                        errorMessage.postValue("删除失败");
+                    }
                 } else {
-                    String message = response.body() != null ? response.body().getMessage() : "删除失败";
-                    Timber.e("删除资源点失败: %s", message);
-                    errorMessage.postValue(message);
+                    Timber.e("删除资源点失败");
+                    errorMessage.postValue("删除失败");
                 }
             }
 
             @Override
-            public void onFailure(Call<ApiResponse<Map<String, Object>>> call, Throwable t) {
+            public void onFailure(Call<Map<String, Object>> call, Throwable t) {
                 isLoading.postValue(false);
                 Timber.e(t, "删除资源点失败");
                 errorMessage.postValue("删除失败：" + t.getMessage());
@@ -209,10 +220,6 @@ public class ResourcePointRepository {
 
     private ResourceRequest convertToRequest(ResourcePoint point) {
         Map<String, Object> propsMap = new HashMap<>();
-        propsMap.put("name", point.getName() != null ? point.getName() : "");
-        propsMap.put("status", point.getStatus() != null ? point.getStatus() : 0);
-        propsMap.put("address", point.getAddress() != null ? point.getAddress() : "");
-
         String propsJson;
         try {
             propsJson = objectMapper.writeValueAsString(propsMap);

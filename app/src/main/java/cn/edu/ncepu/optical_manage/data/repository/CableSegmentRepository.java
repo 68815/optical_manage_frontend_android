@@ -153,22 +153,27 @@ public class CableSegmentRepository {
         Timber.d("更新光缆段: id=%d, name=%s", segment.getId(), segment.getName());
 
         Map<String, Object> request = convertToRequest(segment);
-        apiService.updateFiberSegment(segment.getId(), request).enqueue(new Callback<ApiResponse<Map<String, Object>>>() {
+        apiService.updateFiberSegment(segment.getId(), request).enqueue(new Callback<Map<String, Object>>() {
             @Override
-            public void onResponse(Call<ApiResponse<Map<String, Object>>> call, Response<ApiResponse<Map<String, Object>>> response) {
+            public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
                 isLoading.postValue(false);
-                if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
-                    Timber.d("光缆段更新成功");
-                    updatedSegment.postValue(segment);
+                if (response.isSuccessful() && response.body() != null) {
+                    Object ok = response.body().get("ok");
+                    if (Boolean.TRUE.equals(ok)) {
+                        Timber.d("光缆段更新成功");
+                        updatedSegment.postValue(segment);
+                    } else {
+                        Timber.e("更新光缆段失败");
+                        errorMessage.postValue("更新失败");
+                    }
                 } else {
-                    String message = response.body() != null ? response.body().getMessage() : "更新失败";
-                    Timber.e("更新光缆段失败: %s", message);
-                    errorMessage.postValue(message);
+                    Timber.e("更新光缆段失败");
+                    errorMessage.postValue("更新失败");
                 }
             }
 
             @Override
-            public void onFailure(Call<ApiResponse<Map<String, Object>>> call, Throwable t) {
+            public void onFailure(Call<Map<String, Object>> call, Throwable t) {
                 isLoading.postValue(false);
                 Timber.e(t, "更新光缆段失败");
                 errorMessage.postValue("更新失败：" + t.getMessage());
@@ -180,22 +185,27 @@ public class CableSegmentRepository {
         isLoading.postValue(true);
         Timber.d("删除光缆段: id=%d, name=%s", segment.getId(), segment.getName());
 
-        apiService.deleteFiberSegment(segment.getId()).enqueue(new Callback<ApiResponse<Map<String, Object>>>() {
+        apiService.deleteFiberSegment(segment.getId()).enqueue(new Callback<Map<String, Object>>() {
             @Override
-            public void onResponse(Call<ApiResponse<Map<String, Object>>> call, Response<ApiResponse<Map<String, Object>>> response) {
+            public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
                 isLoading.postValue(false);
-                if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
-                    Timber.d("光缆段删除成功, id=%d", segment.getId());
-                    deletedSegmentId.postValue(segment.getId());
+                if (response.isSuccessful() && response.body() != null) {
+                    Object ok = response.body().get("ok");
+                    if (Boolean.TRUE.equals(ok)) {
+                        Timber.d("光缆段删除成功, id=%d", segment.getId());
+                        deletedSegmentId.postValue(segment.getId());
+                    } else {
+                        Timber.e("删除光缆段失败");
+                        errorMessage.postValue("删除失败");
+                    }
                 } else {
-                    String message = response.body() != null ? response.body().getMessage() : "删除失败";
-                    Timber.e("删除光缆段失败: %s", message);
-                    errorMessage.postValue(message);
+                    Timber.e("删除光缆段失败");
+                    errorMessage.postValue("删除失败");
                 }
             }
 
             @Override
-            public void onFailure(Call<ApiResponse<Map<String, Object>>> call, Throwable t) {
+            public void onFailure(Call<Map<String, Object>> call, Throwable t) {
                 isLoading.postValue(false);
                 Timber.e(t, "删除光缆段失败");
                 errorMessage.postValue("删除失败：" + t.getMessage());

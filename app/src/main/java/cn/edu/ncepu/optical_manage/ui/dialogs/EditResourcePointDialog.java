@@ -16,6 +16,8 @@ import com.google.android.material.textfield.TextInputEditText;
 
 import cn.edu.ncepu.optical_manage.R;
 import cn.edu.ncepu.optical_manage.model.ResourcePoint;
+import cn.edu.ncepu.optical_manage.ui.helper.GeocodeHelper;
+import timber.log.Timber;
 
 public class EditResourcePointDialog {
 
@@ -47,17 +49,61 @@ public class EditResourcePointDialog {
         this.selectedType = point.getType();
         this.selectedStatus = point.getStatus() != null ? point.getStatus() : ResourcePoint.STATUS_NORMAL;
 
-        View dialogView = LayoutInflater.from(fragment.requireContext())
+        dialogView = LayoutInflater.from(fragment.requireContext())
                 .inflate(R.layout.dialog_resource_point, null);
 
         initViews(dialogView);
         populateData(point);
         setupButtons();
 
+        // 如果地址为空，自动根据坐标获取地址
+        if (TextUtils.isEmpty(point.getAddress())) {
+            loadAddressFromLocation(point.getLatitude(), point.getLongitude());
+        }
+
         MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(fragment.requireContext())
                 .setView(dialogView);
         dialog = builder.create();
         dialog.show();
+    }
+
+    private void loadAddressFromLocation(double latitude, double longitude) {
+        if (etAddress == null) return;
+
+        // 检查坐标是否在中国大陆范围内（大致范围）
+        if (latitude < 3.0 || latitude > 54.0 || longitude < 73.0 || longitude > 136.0) {
+            Timber.w("坐标不在中国大陆范围内，跳过逆地理编码: lat=%f, lng=%f", latitude, longitude);
+            etAddress.setHint("坐标不在中国境内，请手动输入地址");
+            return;
+        }
+
+        etAddress.setHint("正在获取地址...");
+
+        try {
+            GeocodeHelper geocodeHelper = new GeocodeHelper(fragment.requireContext());
+            geocodeHelper.getAddressFromLocation(latitude, longitude, new GeocodeHelper.OnAddressCallback() {
+                @Override
+                public void onAddressResult(String address) {
+                    if (etAddress != null && fragment.isAdded()) {
+                        // 只有当地址为空时才自动填充
+                        if (TextUtils.isEmpty(etAddress.getText())) {
+                            etAddress.setText(address);
+                        }
+                    }
+                }
+
+                @Override
+                public void onError(String error) {
+                    Timber.e("获取地址失败: %s", error);
+                    if (etAddress != null && fragment.isAdded()) {
+                        etAddress.setHint("地址获取失败，请手动输入");
+                    }
+                }
+            });
+        } catch (Exception e) {
+            Timber.e(e, "初始化GeocodeHelper失败");
+            etAddress.setHint("地址服务不可用，请手动输入");
+        }
     }
 
     private void initViews(View dialogView) {
@@ -140,9 +186,11 @@ public class EditResourcePointDialog {
         });
     }
 
+    private View dialogView;
+
     private void setupButtons() {
-        Button btnCancel = ((View) etName.getParent().getParent()).findViewById(R.id.btnCancel);
-        Button btnSave = ((View) etName.getParent().getParent()).findViewById(R.id.btnSave);
+        Button btnCancel = dialogView.findViewById(R.id.btnCancel);
+        Button btnSave = dialogView.findViewById(R.id.btnSave);
 
         btnCancel.setOnClickListener(v -> dialog.dismiss());
 
