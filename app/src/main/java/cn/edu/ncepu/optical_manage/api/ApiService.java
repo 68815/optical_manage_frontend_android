@@ -22,16 +22,16 @@ public interface ApiService {
     Call<MapResponse> queryResources(@Body MapQueryRequest request);
 
     @GET("/api/v1/map/resource-point/{id}")
-    Call<ApiResponse<ResourcePoint>> getResourcePointById(@Path("id") Long id);
+    Call<ResourcePoint> getResourcePointById(@Path("id") Long id);
 
     @POST("/api/v1/map/resource-point")
-    Call<ApiResponse<Long>> createResourcePoint(@Body ResourceRequest resourceRequest);
+    Call<Long> createResourcePoint(@Body ResourceRequest resourceRequest);
 
     @PUT("/api/v1/map/resource-point/{id}")
-    Call<ApiResponse<Map<String, Object>>> updateResourcePoint(@Path("id") Long id, @Body ResourceRequest resourceRequest);
+    Call<Map<String, Object>> updateResourcePoint(@Path("id") Long id, @Body ResourceRequest resourceRequest);
 
     @DELETE("/api/v1/map/resource-point/{id}")
-    Call<ApiResponse<Map<String, Object>>> deleteResourcePoint(@Path("id") Long id);
+    Call<Map<String, Object>> deleteResourcePoint(@Path("id") Long id);
 
     @POST("/api/v1/map/fiber-segments/query")
     Call<MapResponse> queryFiberSegments(@Body MapQueryRequest request);
@@ -40,10 +40,10 @@ public interface ApiService {
     Call<ApiResponse<Long>> createFiberSegment(@Body Map<String, Object> request);
 
     @PUT("/api/v1/map/fiber-segments/{id}")
-    Call<ApiResponse<Map<String, Object>>> updateFiberSegment(@Path("id") Long id, @Body Map<String, Object> request);
+    Call<Map<String, Object>> updateFiberSegment(@Path("id") Long id, @Body Map<String, Object> request);
 
     @DELETE("/api/v1/map/fiber-segments/{id}")
-    Call<ApiResponse<Map<String, Object>>> deleteFiberSegment(@Path("id") Long id);
+    Call<Map<String, Object>> deleteFiberSegment(@Path("id") Long id);
 
     @POST("/api/v1/map/routings")
     Call<ApiResponse<Long>> createRouting(@Body Map<String, Object> routingRequest);
@@ -52,8 +52,8 @@ public interface ApiService {
     Call<ApiResponse<List<Map<String, Object>>>> queryRoutings(@Body MapQueryRequest request);
 
     @PUT("/api/v1/map/routings/{id}")
-    Call<ApiResponse<Map<String, Object>>> updateRouting(@Path("id") Long id, @Body Map<String, Object> routingRequest);
+    Call<Map<String, Object>> updateRouting(@Path("id") Long id, @Body Map<String, Object> routingRequest);
 
     @DELETE("/api/v1/map/routings/{id}")
-    Call<ApiResponse<Map<String, Object>>> deleteRouting(@Path("id") Long id);
+    Call<Map<String, Object>> deleteRouting(@Path("id") Long id);
 }

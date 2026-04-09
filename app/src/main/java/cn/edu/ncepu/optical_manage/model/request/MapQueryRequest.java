@@ -9,6 +9,9 @@ public class MapQueryRequest {
     @JsonProperty("bbox")
     private Bbox bbox;
 
+    @JsonProperty("centerRadius")
+    private CenterRadius centerRadius;
+
     @JsonProperty("filter")
     private String filter;
 
@@ -47,6 +50,32 @@ public class MapQueryRequest {
         public void setMaxLng(double maxLng) { this.maxLng = maxLng; }
     }
 
+    public static class CenterRadius {
+        @JsonProperty("lat")
+        private double lat;
+
+        @JsonProperty("lng")
+        private double lng;
+
+        @JsonProperty("radiusM")
+        private double radiusM;
+
+        public CenterRadius() {}
+
+        public CenterRadius(double lat, double lng, double radiusM) {
+            this.lat = lat;
+            this.lng = lng;
+            this.radiusM = radiusM;
+        }
+
+        public double getLat() { return lat; }
+        public void setLat(double lat) { this.lat = lat; }
+        public double getLng() { return lng; }
+        public void setLng(double lng) { this.lng = lng; }
+        public double getRadiusM() { return radiusM; }
+        public void setRadiusM(double radiusM) { this.radiusM = radiusM; }
+    }
+
     public String getType() { return type; }
     public void setType(String type) { this.type = type; }
     public Bbox getBbox() { return bbox; }
@@ -55,4 +84,6 @@ public class MapQueryRequest {
     public void setFilter(String filter) { this.filter = filter; }
     public int getLimit() { return limit; }
     public void setLimit(int limit) { this.limit = limit; }
+    public CenterRadius getCenterRadius() { return centerRadius; }
+    public void setCenterRadius(CenterRadius centerRadius) { this.centerRadius = centerRadius; }
 }

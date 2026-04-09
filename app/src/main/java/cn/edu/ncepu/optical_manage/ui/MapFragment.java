@@ -73,6 +73,7 @@ public class MapFragment extends Fragment implements
     private CableSegmentManager cableSegmentManager;
     private LocationHelper locationHelper;
     private CableDrawHelper cableDrawHelper;
+    private Marker currentInfoWindowMarker;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -406,7 +407,7 @@ public class MapFragment extends Fragment implements
     public void onMapClick(LatLng latLng) {
         MapViewModel.AddMode currentMode = viewModel.getCurrentAddMode().getValue();
         if (currentMode == null) currentMode = MapViewModel.AddMode.NONE;
-        
+
         switch (currentMode) {
             case RESOURCE_POINT:
                 showAddResourcePointDialog(latLng);
@@ -417,6 +418,11 @@ public class MapFragment extends Fragment implements
                 break;
             case NONE:
             default:
+                // 点击地图空白处关闭信息框
+                if (currentInfoWindowMarker != null && currentInfoWindowMarker.isInfoWindowShown()) {
+                    currentInfoWindowMarker.hideInfoWindow();
+                    currentInfoWindowMarker = null;
+                }
                 break;
         }
     }
@@ -438,7 +444,19 @@ public class MapFragment extends Fragment implements
         Object object = marker.getObject();
         if (object instanceof ResourcePoint) {
             ResourcePoint point = (ResourcePoint) object;
-            marker.showInfoWindow();
+            // 如果点击的是同一个标记点，则关闭信息框
+            if (currentInfoWindowMarker == marker && marker.isInfoWindowShown()) {
+                marker.hideInfoWindow();
+                currentInfoWindowMarker = null;
+            } else {
+                // 关闭之前的信息框
+                if (currentInfoWindowMarker != null && currentInfoWindowMarker.isInfoWindowShown()) {
+                    currentInfoWindowMarker.hideInfoWindow();
+                }
+                // 显示新的信息框
+                marker.showInfoWindow();
+                currentInfoWindowMarker = marker;
+            }
             return true;
         }
         return false;

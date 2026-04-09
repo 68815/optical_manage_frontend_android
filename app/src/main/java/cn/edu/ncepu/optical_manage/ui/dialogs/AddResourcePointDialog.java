@@ -16,6 +16,8 @@ import com.google.android.material.textfield.TextInputEditText;
 
 import cn.edu.ncepu.optical_manage.R;
 import cn.edu.ncepu.optical_manage.model.ResourcePoint;
+import cn.edu.ncepu.optical_manage.ui.helper.GeocodeHelper;
+import timber.log.Timber;
 
 public class AddResourcePointDialog {
 
@@ -35,6 +37,7 @@ public class AddResourcePointDialog {
     private TextView tvDialogTitle;
     private Button btnCancel;
     private Button btnSave;
+    private TextInputEditText etAddress;
 
     private ResourcePoint.ResourceType selectedType = ResourcePoint.ResourceType.POLE;
     private int selectedStatus = ResourcePoint.STATUS_NORMAL;
@@ -53,19 +56,58 @@ public class AddResourcePointDialog {
     public void show(double latitude, double longitude, ResourcePoint.ResourceType defaultType, String title) {
         this.latitude = latitude;
         this.longitude = longitude;
-        
+
         dialogView = LayoutInflater.from(fragment.requireContext())
                 .inflate(R.layout.dialog_resource_point, null);
-        
+
         initViews(dialogView);
         setupTypeSpinner(defaultType);
         setupStatusSpinner();
         setupButtons(title);
 
+        // 自动根据坐标获取地址
+        loadAddressFromLocation(latitude, longitude);
+
         MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(fragment.requireContext())
                 .setView(dialogView);
         dialog = builder.create();
         dialog.show();
+    }
+
+    private void loadAddressFromLocation(double latitude, double longitude) {
+        if (etAddress == null) return;
+
+        // 检查坐标是否在中国大陆范围内（大致范围）
+        if (latitude < 3.0 || latitude > 54.0 || longitude < 73.0 || longitude > 136.0) {
+            Timber.w("坐标不在中国大陆范围内，跳过逆地理编码: lat=%f, lng=%f", latitude, longitude);
+            etAddress.setHint("坐标不在中国境内，请手动输入地址");
+            return;
+        }
+
+        etAddress.setHint("正在获取地址...");
+
+        try {
+            GeocodeHelper geocodeHelper = new GeocodeHelper(fragment.requireContext());
+            geocodeHelper.getAddressFromLocation(latitude, longitude, new GeocodeHelper.OnAddressCallback() {
+                @Override
+                public void onAddressResult(String address) {
+                    if (etAddress != null && fragment.isAdded()) {
+                        etAddress.setText(address);
+                    }
+                }
+
+                @Override
+                public void onError(String error) {
+                    Timber.e("获取地址失败: %s", error);
+                    if (etAddress != null && fragment.isAdded()) {
+                        etAddress.setHint("地址获取失败，请手动输入");
+                    }
+                }
+            });
+        } catch (Exception e) {
+            Timber.e(e, "初始化GeocodeHelper失败");
+            etAddress.setHint("地址服务不可用，请手动输入");
+        }
     }
 
     private void initViews(View view) {
@@ -75,6 +117,7 @@ public class AddResourcePointDialog {
         tvDialogTitle = view.findViewById(R.id.tvDialogTitle);
         btnCancel = view.findViewById(R.id.btnCancel);
         btnSave = view.findViewById(R.id.btnSave);
+        etAddress = view.findViewById(R.id.etAddress);
     }
 
     private void setupTypeSpinner(ResourcePoint.ResourceType defaultType) {
@@ -157,6 +200,7 @@ public class AddResourcePointDialog {
 
             ResourcePoint point = new ResourcePoint(name, selectedType.getValue(), latitude, longitude);
             point.setStatus(selectedStatus);
+            point.setAddress(etAddress.getText().toString().trim());
 
             if (saveListener != null) {
                 saveListener.onSave(point);
